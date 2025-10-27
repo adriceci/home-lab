@@ -3,10 +3,8 @@ import Header from "@/components/layouts/Header.vue";
 </script>
 
 <template>
-    <div>
+    <div class="ml-70">
         <Header />
-        <main>
-            <router-view />
-        </main>
+        <router-view />
     </div>
 </template>

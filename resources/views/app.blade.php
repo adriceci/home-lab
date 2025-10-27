@@ -17,7 +17,7 @@
 </head>
 
 <body>
-    <div id="app"></div>
+    <div id="app" class="bg-gray-100"></div>
 
     <!-- Scripts -->
     @vite('resources/js/app.js')
