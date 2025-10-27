@@ -1,11 +1,6 @@
 <script setup>
-import {
-    MagnifyingGlassIcon,
-    BellIcon,
-    EnvelopeIcon,
-    ArrowUpIcon,
-} from "@heroicons/vue/24/outline";
-import { Card } from "@/components/ui";
+import { BellIcon, EnvelopeIcon, ArrowUpIcon } from "@heroicons/vue/24/outline";
+import { Card, Search } from "@/components/ui";
 </script>
 
 <template>
@@ -14,22 +9,7 @@ import { Card } from "@/components/ui";
         <div
             class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200"
         >
-            <div class="flex items-center space-x-4">
-                <div class="relative">
-                    <MagnifyingGlassIcon
-                        class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                        type="text"
-                        placeholder="Search task"
-                        class="bg-gray-50 border border-gray-300 rounded-md px-4 py-2 text-gray-900 transition-all duration-200 pl-10 pr-4 w-80"
-                    />
-                    <span
-                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400"
-                        >⌘F</span
-                    >
-                </div>
-            </div>
+            <Search />
             <div class="flex items-center space-x-4">
                 <button
                     class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
