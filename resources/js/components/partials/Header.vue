@@ -2,6 +2,7 @@
 import {
     HomeIcon,
     ChartBarIcon,
+    ClipboardDocumentListIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
     SunIcon,
@@ -10,22 +11,40 @@ import {
 import { Badge, Button } from "@/components/ui";
 import { useRouter } from "vue-router";
 import { useTheme } from "@/composables/useTheme";
+import { useAuth } from "@/composables/useAuth";
 
 const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
+const { logout } = useAuth();
 
 const menuItems = [
     { name: "Dashboard", icon: HomeIcon, to: "/dashboard" },
     { name: "Analytics", icon: ChartBarIcon, to: "/analytics" },
+    { name: "Audit Logs", icon: ClipboardDocumentListIcon, to: "/audit-logs" },
 ];
 
 const generalItems = [
     { name: "Settings", icon: Cog6ToothIcon, to: "/settings" },
-    { name: "Logout", icon: ArrowRightOnRectangleIcon, to: "/logout" },
+    { name: "Logout", icon: ArrowRightOnRectangleIcon, action: "logout" },
 ];
 
 const isActive = (to) => {
     return router.currentRoute.value.path === to;
+};
+
+const handleItemClick = async (item) => {
+    if (item.action === "logout") {
+        try {
+            await logout();
+            router.push("/login");
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Still redirect to login even if logout fails
+            router.push("/login");
+        }
+    } else if (item.to) {
+        router.push(item.to);
+    }
 };
 </script>
 
@@ -97,7 +116,19 @@ const isActive = (to) => {
         <div class="py-4">
             <ul class="space-y-1">
                 <li v-for="item in generalItems" :key="item.name">
+                    <button
+                        v-if="item.action"
+                        @click="handleItemClick(item)"
+                        class="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-200 rounded-lg transition-colors hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                        <component
+                            :is="item.icon"
+                            class="w-5 h-5 mr-3 text-gray-400 dark:text-gray-500"
+                        />
+                        <span>{{ item.name }}</span>
+                    </button>
                     <router-link
+                        v-else
                         :to="item.to"
                         class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-200 rounded-lg transition-colors hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
                     >

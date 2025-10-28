@@ -12,28 +12,28 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->uuid('id')->primary()->comment('Unique identifier for the user');
+            $table->string('name')->comment('Full name of the user');
+            $table->string('email')->unique()->comment('User email address, must be unique');
+            $table->timestamp('email_verified_at')->nullable()->comment('Timestamp when the email was verified');
+            $table->string('password')->comment('Hashed password for user authentication');
+            $table->rememberToken()->comment('Token for "remember me" functionality');
             $table->timestamps();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->string('email')->primary()->comment('Email address for password reset');
+            $table->string('token')->comment('Reset token for password recovery');
+            $table->timestamp('created_at')->nullable()->comment('When the reset token was created');
         });
 
         Schema::create('sessions', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->longText('payload');
-            $table->integer('last_activity')->index();
+            $table->string('id')->primary()->comment('Unique session identifier');
+            $table->foreignUuid('user_id')->nullable()->index()->comment('ID of the user associated with this session');
+            $table->string('ip_address', 45)->nullable()->comment('IP address from which the session was created');
+            $table->text('user_agent')->nullable()->comment('User agent string from the browser');
+            $table->longText('payload')->comment('Serialized session data');
+            $table->integer('last_activity')->index()->comment('Unix timestamp of last activity in this session');
         });
     }
 
