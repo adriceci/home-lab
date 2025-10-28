@@ -49,7 +49,7 @@ const isActive = (to) => {
                 <!-- Theme Toggle Button -->
                 <Button variant="ghost" size="sm" @click="toggleTheme">
                     <component
-                        :is="isDark ? SunIcon : MoonIcon"
+                        :is="isDark ? MoonIcon : SunIcon"
                         class="w-5 h-5"
                     />
                 </Button>
