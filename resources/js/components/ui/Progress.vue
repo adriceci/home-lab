@@ -41,7 +41,8 @@ const props = defineProps({
 });
 
 const progressClasses = computed(() => {
-    const baseClasses = "w-full bg-gray-200 rounded-full overflow-hidden";
+    const baseClasses =
+        "w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden";
 
     const sizeClasses = {
         sm: "h-1",
@@ -95,10 +96,10 @@ const labelText = computed(() => {
     <div class="progress-container">
         <!-- Label -->
         <div v-if="labelText" class="flex justify-between items-center mb-1">
-            <span class="text-sm font-medium text-gray-700">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
                 {{ labelText }}
             </span>
-            <span class="text-sm text-gray-500">
+            <span class="text-sm text-gray-500 dark:text-gray-300">
                 {{ Math.round(value) }}%
             </span>
         </div>

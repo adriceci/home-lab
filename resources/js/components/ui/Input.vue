@@ -67,10 +67,10 @@ const inputClasses = computed(() => {
 
     const variantClasses = {
         default:
-            "bg-white border border-gray-300 rounded-md focus:border-green-primary focus:ring-green-primary",
-        filled: "bg-gray-50 border border-gray-200 rounded-md focus:border-green-primary focus:ring-green-primary focus:bg-white",
+            "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:border-green-primary focus:ring-green-primary text-gray-900 dark:text-white",
+        filled: "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:border-green-primary focus:ring-green-primary focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white",
         outlined:
-            "bg-transparent border-2 border-gray-300 rounded-md focus:border-green-primary focus:ring-green-primary",
+            "bg-transparent border-2 border-gray-300 dark:border-gray-600 rounded-md focus:border-green-primary focus:ring-green-primary text-gray-900 dark:text-white",
     };
 
     const stateClasses = props.error
@@ -78,7 +78,7 @@ const inputClasses = computed(() => {
         : "";
 
     const disabledClasses = props.disabled
-        ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+        ? "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
         : "";
 
     return [
@@ -126,7 +126,7 @@ const focus = () => {
         <!-- Label -->
         <label
             v-if="label"
-            class="block text-sm font-medium text-gray-700 mb-1"
+            class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1"
         >
             {{ label }}
             <span v-if="required" class="text-red-500 ml-1">*</span>
@@ -139,7 +139,10 @@ const focus = () => {
                 v-if="icon && iconPosition === 'left'"
                 class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
             >
-                <component :is="icon" class="h-5 w-5 text-gray-400" />
+                <component
+                    :is="icon"
+                    class="h-5 w-5 text-gray-400 dark:text-gray-500"
+                />
             </div>
 
             <!-- Input Field -->
@@ -162,7 +165,10 @@ const focus = () => {
                 v-if="icon && iconPosition === 'right'"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
             >
-                <component :is="icon" class="h-5 w-5 text-gray-400" />
+                <component
+                    :is="icon"
+                    class="h-5 w-5 text-gray-400 dark:text-gray-500"
+                />
             </div>
         </div>
 
@@ -172,7 +178,10 @@ const focus = () => {
         </p>
 
         <!-- Help Text -->
-        <p v-if="$slots.help && !error" class="mt-1 text-sm text-gray-500">
+        <p
+            v-if="$slots.help && !error"
+            class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+        >
             <slot name="help" />
         </p>
     </div>

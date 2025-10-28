@@ -1,26 +1,26 @@
 <script setup>
 import { BellIcon, EnvelopeIcon, ArrowUpIcon } from "@heroicons/vue/24/outline";
-import { Card, Search } from "@/components/ui";
+import { Card, Search, Button } from "@/components/ui";
 </script>
 
 <template>
     <div class="space-y-6">
         <!-- Top Bar -->
         <div
-            class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200"
+            class="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
         >
             <Search />
             <div class="flex items-center space-x-4">
-                <button
-                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <EnvelopeIcon class="w-5 h-5 text-gray-600" />
-                </button>
-                <button
-                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <BellIcon class="w-5 h-5 text-gray-600" />
-                </button>
+                <Button variant="ghost" size="sm" @click="">
+                    <EnvelopeIcon
+                        class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                    />
+                </Button>
+                <Button variant="ghost" size="sm" @click="">
+                    <BellIcon
+                        class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                    />
+                </Button>
                 <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 rounded-full overflow-hidden">
                         <img
@@ -30,10 +30,14 @@ import { Card, Search } from "@/components/ui";
                         />
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">
+                        <p
+                            class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                        >
                             Totok Michael
                         </p>
-                        <p class="text-xs text-gray-500">tmichael20@mail.com</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            tmichael20@mail.com
+                        </p>
                     </div>
                 </div>
             </div>
@@ -42,14 +46,25 @@ import { Card, Search } from "@/components/ui";
         <!-- Metrics Cards -->
         <div class="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-6">
             <!-- Total Projects Card -->
-            <Card variant="filled" class="bg-gray-100 text-white">
+            <Card
+                variant="filled"
+                class="bg-gray-100 dark:bg-gray-700 text-white"
+            >
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-900">
+                        <h3
+                            class="text-sm font-medium text-gray-900 dark:text-gray-100"
+                        >
                             Total Projects
                         </h3>
-                        <p class="text-3xl font-bold mt-2 text-gray-900">24</p>
-                        <p class="text-sm text-gray-900 mt-1">
+                        <p
+                            class="text-3xl font-bold mt-2 text-gray-900 dark:text-gray-100"
+                        >
+                            24
+                        </p>
+                        <p
+                            class="text-sm text-gray-900 dark:text-gray-200 mt-1"
+                        >
                             5 Increased from last month
                         </p>
                     </div>
@@ -65,11 +80,19 @@ import { Card, Search } from "@/components/ui";
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600">
+                        <h3
+                            class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                        >
                             Ended Projects
                         </h3>
-                        <p class="text-3xl font-bold mt-2 text-gray-900">10</p>
-                        <p class="text-sm text-gray-500 mt-1">
+                        <p
+                            class="text-3xl font-bold mt-2 text-gray-900 dark:text-gray-100"
+                        >
+                            10
+                        </p>
+                        <p
+                            class="text-sm text-gray-500 dark:text-gray-400 mt-1"
+                        >
                             2 Increased from last month
                         </p>
                     </div>
@@ -85,11 +108,19 @@ import { Card, Search } from "@/components/ui";
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600">
+                        <h3
+                            class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                        >
                             Running Projects
                         </h3>
-                        <p class="text-3xl font-bold mt-2 text-gray-900">12</p>
-                        <p class="text-sm text-gray-500 mt-1">
+                        <p
+                            class="text-3xl font-bold mt-2 text-gray-900 dark:text-gray-100"
+                        >
+                            12
+                        </p>
+                        <p
+                            class="text-sm text-gray-500 dark:text-gray-400 mt-1"
+                        >
                             3 Increased from last month
                         </p>
                     </div>
@@ -105,11 +136,19 @@ import { Card, Search } from "@/components/ui";
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600">
+                        <h3
+                            class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                        >
                             Pending Project
                         </h3>
-                        <p class="text-3xl font-bold mt-2 text-gray-900">2</p>
-                        <p class="text-sm text-gray-500 mt-1">
+                        <p
+                            class="text-3xl font-bold mt-2 text-gray-900 dark:text-gray-100"
+                        >
+                            2
+                        </p>
+                        <p
+                            class="text-sm text-gray-500 dark:text-gray-400 mt-1"
+                        >
                             1 Decreased from last month
                         </p>
                     </div>

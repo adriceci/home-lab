@@ -38,7 +38,7 @@ const emit = defineEmits(["click"]);
 
 const buttonClasses = computed(() => {
     const baseClasses =
-        "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+        "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
     const sizeClasses = {
         xs: "px-2 py-1 text-xs",
@@ -52,10 +52,10 @@ const buttonClasses = computed(() => {
         primary:
             "bg-green-primary hover:bg-green-secondary text-white focus:ring-green-primary shadow-sm hover:shadow-md",
         secondary:
-            "bg-gray-100 hover:bg-gray-200 text-gray-900 focus:ring-gray-500 border border-gray-300",
+            "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white focus:ring-gray-500 border border-gray-300 dark:border-gray-600",
         outline:
-            "bg-transparent hover:bg-green-50 text-green-primary border border-green-primary hover:border-green-secondary focus:ring-green-primary",
-        ghost: "bg-transparent hover:bg-gray-100 text-gray-700 focus:ring-gray-500",
+            "bg-transparent hover:bg-green-50 dark:hover:bg-green-900/20 text-green-primary border border-green-primary hover:border-green-secondary focus:ring-green-primary",
+        ghost: "bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-gray-500",
         danger: "bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 shadow-sm hover:shadow-md",
     };
 

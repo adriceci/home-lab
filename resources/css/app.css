@@ -1,161 +1,75 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
-
+/* Tailwind CSS v4 Configuration */
 @theme {
-    /* Typography */
-    --font-quicksand: 'Quicksand', sans-serif;
+    --font-family-quicksand: 'Quicksand', sans-serif;
     
-    /* Light Theme Colors */
-    --color-primary: #185d3d;
-    --color-primary-dark: #227d53;
-    --color-primary-light: #49a150;
-    
-    /* Custom Green Color Classes */
-    --green-primary: #185d3d;
-    --green-secondary: #227d53;
-    --green-tertiary: #49a150;
-    
-    /* Background Colors */
-    --color-bg-primary: #FFFFFF;
-    --color-bg-secondary: #F8F9FA;
-    --color-bg-tertiary: #E9ECEF;
-    
-    /* Text Colors */
-    --color-text-primary: #212529;
-    --color-text-secondary: #6C757D;
-    --color-text-muted: #ADB5BD;
-    --color-text-white: #FFFFFF;
-    
-    /* Status Colors */
-    --color-success: #185d3d;
-    
-    /* Border Colors */
-    --color-border-light: #E9ECEF;
-    --color-border-medium: #DEE2E6;
-    --color-border-dark: #ADB5BD;
-    
-    /* Shadow Colors */
-    --color-shadow-light: rgba(0, 0, 0, 0.05);
-    --color-shadow-medium: rgba(0, 0, 0, 0.1);
-    --color-shadow-dark: rgba(0, 0, 0, 0.15);
-    
-    
-    
-    
-    
-    /* Spacing Scale */
-    --space-xs: 0.25rem;
-    --space-sm: 0.5rem;
-    --space-md: 1rem;
-    --space-lg: 1.5rem;
-    --space-xl: 2rem;
-    --space-2xl: 3rem;
-    
-    /* Border Radius */
-    --radius-sm: 0.25rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-2xl: 1.5rem;
-    --radius-full: 9999px;
-    
-    /* Font Sizes */
-    --text-xs: 0.75rem;
-    --text-sm: 0.875rem;
-    --text-base: 1rem;
-    --text-lg: 1.125rem;
-    --text-xl: 1.25rem;
-    --text-2xl: 1.5rem;
-    --text-3xl: 1.875rem;
-    --text-4xl: 2.25rem;
-    
-    /* Font Weights */
-    --font-light: 300;
-    --font-normal: 400;
-    --font-medium: 500;
-    --font-semibold: 600;
-    --font-bold: 700;
-    
-    /* Line Heights */
-    --leading-tight: 1.25;
-    --leading-normal: 1.5;
-    --leading-relaxed: 1.625;
-    --leading-loose: 2;
-    
-    /* Z-Index Scale */
-    --z-dropdown: 1000;
-    --z-sticky: 1020;
-    --z-fixed: 1030;
-    --z-modal-backdrop: 1040;
-    --z-modal: 1050;
-    --z-popover: 1060;
-    --z-tooltip: 1070;
+    /* Custom Green Colors */
+    --color-green-primary: #185d3d;
+    --color-green-secondary: #227d53;
+    --color-green-tertiary: #49a150;
+}
+
+/* Dark mode configuration for class-based switching */
+@variant dark (.dark &);
+
+/* Force Tailwind to generate dark mode classes */
+.dark-mode-classes {
+    @apply dark:bg-gray-800 dark:bg-gray-700 dark:bg-gray-900 dark:bg-green-900/20;
+    @apply dark:text-gray-100 dark:text-gray-300 dark:text-gray-400 dark:text-gray-500;
+    @apply dark:border-gray-700 dark:border-gray-600;
+    @apply dark:hover:bg-gray-600 dark:hover:bg-gray-700;
 }
 
 /* Base Styles */
 * {
-    font-family: var(--font-quicksand);
+    font-family: var(--font-family-quicksand);
 }
 
 body {
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text-primary);
-    line-height: var(--leading-normal);
+    @apply bg-gray-50 text-gray-900 leading-normal;
 }
 
-/* Theme Utility Classes */
+/* Dark mode styles */
+.dark body {
+    @apply bg-gray-900 text-gray-100;
+}
+
+/* Theme transition */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Custom utility classes for theme switching */
 .theme-light {
-    --color-primary: #185d3d;
-    --color-primary-dark: #227d53;
-    --color-primary-light: #49a150;
-    --color-bg-primary: #FFFFFF;
-    --color-bg-secondary: #F8F9FA;
-    --color-text-primary: #212529;
-    --color-text-secondary: #6C757D;
+    @apply bg-white text-gray-900;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
+.theme-dark {
+    @apply bg-gray-900 text-gray-100;
+}
 
 /* Custom Green Color Classes */
 .bg-green-primary {
-    background-color: #185d3d;
+    background-color: var(--color-green-primary);
 }
-
 
 .text-green-primary {
-    color: #185d3d;
+    color: var(--color-green-primary);
 }
-
 
 .border-green-primary {
-    border-color: #185d3d;
+    border-color: var(--color-green-primary);
 }
 
-
 .focus\:border-green-primary:focus {
-    border-color: #185d3d;
+    border-color: var(--color-green-primary);
 }
 
 .focus\:ring-green-primary:focus {
-    --tw-ring-color: #185d3d;
+    --tw-ring-color: var(--color-green-primary);
 }
 
 .hover\:bg-green-secondary:hover {
-    background-color: #227d53;
+    background-color: var(--color-green-secondary);
 }
-

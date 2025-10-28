@@ -2,8 +2,11 @@
 import { useRouter } from "vue-router";
 import { HomeIcon, ArrowLeftIcon } from "@heroicons/vue/24/outline";
 import { Card } from "@/components/ui";
+import { useTheme } from "@/composables/useTheme";
+import { onMounted } from "vue";
 
 const router = useRouter();
+const { initTheme } = useTheme();
 
 const goHome = () => {
     router.push("/dashboard");
@@ -16,6 +19,10 @@ const goBack = () => {
         goHome();
     }
 };
+
+onMounted(() => {
+    initTheme();
+});
 </script>
 
 <template>
@@ -26,13 +33,14 @@ const goBack = () => {
             <Card clickable @click="goHome">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-green-primary">
-                            Ir al Inicio
-                        </h3>
-                        <p class="text-lg font-semibold mt-2 text-gray-900">
+                        <p
+                            class="text-lg font-semibold mt-2 text-gray-900 dark:text-white"
+                        >
                             Dashboard Principal
                         </p>
-                        <p class="text-sm text-gray-500 mt-1">
+                        <p
+                            class="text-sm text-gray-500 dark:text-gray-300 mt-1"
+                        >
                             Regresa a la página principal del sistema
                         </p>
                     </div>
@@ -48,13 +56,14 @@ const goBack = () => {
             <Card clickable @click="goBack">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-medium text-green-primary">
-                            Volver Atrás
-                        </h3>
-                        <p class="text-lg font-semibold mt-2 text-gray-900">
+                        <p
+                            class="text-lg font-semibold mt-2 text-gray-900 dark:text-white"
+                        >
                             Página Anterior
                         </p>
-                        <p class="text-sm text-gray-500 mt-1">
+                        <p
+                            class="text-sm text-gray-500 dark:text-gray-300 mt-1"
+                        >
                             Regresa a la página donde estabas antes
                         </p>
                     </div>
@@ -77,13 +86,17 @@ const goBack = () => {
                     <!-- Error Content Slot -->
                     <slot name="error-content">
                         <!-- Default 404 content -->
-                        <h1 class="text-8xl font-bold text-green-primary">
+                        <h1
+                            class="text-8xl font-bold text-green-primary dark:text-green-400"
+                        >
                             404
                         </h1>
-                        <h2 class="text-2xl font-extrabold text-gray-900">
+                        <h2
+                            class="text-2xl font-extrabold text-gray-900 dark:text-white"
+                        >
                             Página no encontrada
                         </h2>
-                        <p class="text-sm text-gray-600">
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
                             Lo sentimos, la página que estás buscando no está
                             disponible.
                         </p>

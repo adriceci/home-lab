@@ -95,10 +95,14 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-gray-600">
+                        <p
+                            class="text-sm font-medium text-gray-600 dark:text-gray-200"
+                        >
                             Total Views
                         </p>
-                        <p class="text-3xl font-bold text-gray-900 mt-2">
+                        <p
+                            class="text-3xl font-bold text-gray-900 dark:text-white mt-2"
+                        >
                             {{
                                 formatNumber(analyticsData.overview.totalViews)
                             }}
@@ -129,7 +133,8 @@ const getChangeIcon = (change) => {
                                     Math.abs(analyticsData.trends.views.change)
                                 }}%
                             </span>
-                            <span class="text-sm text-gray-500 ml-1"
+                            <span
+                                class="text-sm text-gray-500 dark:text-gray-300 ml-1"
                                 >vs last month</span
                             >
                         </div>
@@ -146,10 +151,14 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-gray-600">
+                        <p
+                            class="text-sm font-medium text-gray-600 dark:text-gray-200"
+                        >
                             Total Users
                         </p>
-                        <p class="text-3xl font-bold text-gray-900 mt-2">
+                        <p
+                            class="text-3xl font-bold text-gray-900 dark:text-white mt-2"
+                        >
                             {{
                                 formatNumber(analyticsData.overview.totalUsers)
                             }}
@@ -180,7 +189,8 @@ const getChangeIcon = (change) => {
                                     Math.abs(analyticsData.trends.users.change)
                                 }}%
                             </span>
-                            <span class="text-sm text-gray-500 ml-1"
+                            <span
+                                class="text-sm text-gray-500 dark:text-gray-300 ml-1"
                                 >vs last month</span
                             >
                         </div>
@@ -197,10 +207,14 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-gray-600">
+                        <p
+                            class="text-sm font-medium text-gray-600 dark:text-gray-200"
+                        >
                             Total Projects
                         </p>
-                        <p class="text-3xl font-bold text-gray-900 mt-2">
+                        <p
+                            class="text-3xl font-bold text-gray-900 dark:text-white mt-2"
+                        >
                             {{ analyticsData.overview.totalProjects }}
                         </p>
                         <div class="flex items-center mt-1">
@@ -231,7 +245,8 @@ const getChangeIcon = (change) => {
                                     )
                                 }}%
                             </span>
-                            <span class="text-sm text-gray-500 ml-1"
+                            <span
+                                class="text-sm text-gray-500 dark:text-gray-300 ml-1"
                                 >vs last month</span
                             >
                         </div>
@@ -248,10 +263,14 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-medium text-gray-600">
+                        <p
+                            class="text-sm font-medium text-gray-600 dark:text-gray-200"
+                        >
                             Total Revenue
                         </p>
-                        <p class="text-3xl font-bold text-gray-900 mt-2">
+                        <p
+                            class="text-3xl font-bold text-gray-900 dark:text-white mt-2"
+                        >
                             ${{
                                 formatNumber(
                                     analyticsData.overview.totalRevenue
@@ -286,7 +305,8 @@ const getChangeIcon = (change) => {
                                     )
                                 }}%
                             </span>
-                            <span class="text-sm text-gray-500 ml-1"
+                            <span
+                                class="text-sm text-gray-500 dark:text-gray-300 ml-1"
                                 >vs last month</span
                             >
                         </div>
@@ -306,7 +326,7 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between mb-6">
                     <h3
-                        class="text-2xl font-semibold text-gray-900 leading-tight"
+                        class="text-2xl font-semibold text-gray-900 dark:text-gray-100 leading-tight"
                     >
                         User Activity (24h)
                     </h3>
@@ -324,13 +344,14 @@ const getChangeIcon = (change) => {
                                 :style="`height: ${(data.users / 250) * 100}%`"
                                 :title="`${data.users} users at ${data.time}`"
                             ></div>
-                            <span class="text-xs text-gray-500 mt-2">{{
-                                data.time
-                            }}</span>
+                            <span
+                                class="text-xs text-gray-500 dark:text-gray-400 mt-2"
+                                >{{ data.time }}</span
+                            >
                         </div>
                     </div>
                     <div
-                        class="flex items-center justify-between text-sm text-gray-600"
+                        class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400"
                     >
                         <span>Peak: 234 users at 12:00</span>
                         <span>Average: 138 users</span>
@@ -342,7 +363,7 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between mb-6">
                     <h3
-                        class="text-2xl font-semibold text-gray-900 leading-tight"
+                        class="text-2xl font-semibold text-gray-900 dark:text-white leading-tight"
                     >
                         Device Statistics
                     </h3>
@@ -355,10 +376,14 @@ const getChangeIcon = (change) => {
                         class="space-y-2"
                     >
                         <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium text-gray-700">
+                            <span
+                                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >
                                 {{ device.device }}
                             </span>
-                            <span class="text-sm text-gray-500">
+                            <span
+                                class="text-sm text-gray-500 dark:text-gray-300"
+                            >
                                 {{ device.users }} users ({{
                                     device.percentage
                                 }}%)
@@ -384,7 +409,7 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between mb-6">
                     <h3
-                        class="text-2xl font-semibold text-gray-900 leading-tight"
+                        class="text-2xl font-semibold text-gray-900 dark:text-white leading-tight"
                     >
                         Top Pages
                     </h3>
@@ -394,19 +419,23 @@ const getChangeIcon = (change) => {
                     <div
                         v-for="(page, index) in analyticsData.topPages"
                         :key="page.name"
-                        class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                         <div class="flex items-center space-x-3">
                             <div
-                                class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-sm font-semibold text-gray-600"
+                                class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-sm font-semibold text-gray-600 dark:text-gray-200"
                             >
                                 {{ index + 1 }}
                             </div>
                             <div>
-                                <p class="font-medium text-gray-900">
+                                <p
+                                    class="font-medium text-gray-900 dark:text-white"
+                                >
                                     {{ page.name }}
                                 </p>
-                                <p class="text-sm text-gray-500">
+                                <p
+                                    class="text-sm text-gray-500 dark:text-gray-300"
+                                >
                                     {{ formatNumber(page.views) }} views
                                 </p>
                             </div>
@@ -432,7 +461,7 @@ const getChangeIcon = (change) => {
             <Card>
                 <div class="flex items-center justify-between mb-6">
                     <h3
-                        class="text-2xl font-semibold text-gray-900 leading-tight"
+                        class="text-2xl font-semibold text-gray-900 dark:text-white leading-tight"
                     >
                         Recent Activity
                     </h3>
@@ -442,14 +471,14 @@ const getChangeIcon = (change) => {
                     <div
                         v-for="activity in analyticsData.recentActivity"
                         :key="`${activity.user}-${activity.time}`"
-                        class="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        class="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                         <div
                             class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
                             :class="
                                 activity.type === 'success'
-                                    ? 'bg-green-100 text-green-600'
-                                    : 'bg-blue-100 text-blue-600'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                             "
                         >
                             {{
@@ -460,13 +489,16 @@ const getChangeIcon = (change) => {
                             }}
                         </div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-900">
+                            <p
+                                class="text-sm font-medium text-gray-900 dark:text-white"
+                            >
                                 {{ activity.user }}
-                                <span class="text-gray-600">{{
-                                    activity.action
-                                }}</span>
+                                <span
+                                    class="text-gray-600 dark:text-gray-300"
+                                    >{{ activity.action }}</span
+                                >
                             </p>
-                            <p class="text-sm text-gray-500">
+                            <p class="text-sm text-gray-500 dark:text-gray-300">
                                 {{ activity.project }} • {{ activity.time }}
                             </p>
                         </div>
@@ -486,12 +518,16 @@ const getChangeIcon = (change) => {
         <!-- Performance Metrics -->
         <Card>
             <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-semibold text-gray-900 leading-tight">
+                <h3
+                    class="text-2xl font-semibold text-gray-900 dark:text-white leading-tight"
+                >
                     Performance Metrics
                 </h3>
                 <div class="flex items-center space-x-2">
-                    <ClockIcon class="w-5 h-5 text-gray-400" />
-                    <span class="text-sm text-gray-500"
+                    <ClockIcon
+                        class="w-5 h-5 text-gray-400 dark:text-gray-500"
+                    />
+                    <span class="text-sm text-gray-500 dark:text-gray-300"
                         >Last updated 2 minutes ago</span
                     >
                 </div>
@@ -501,7 +537,9 @@ const getChangeIcon = (change) => {
                     <div class="text-3xl font-bold text-green-600 mb-2">
                         98.5%
                     </div>
-                    <p class="text-sm text-gray-600">Uptime</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                        Uptime
+                    </p>
                     <div class="mt-2">
                         <Progress
                             :value="98.5"
@@ -515,7 +553,9 @@ const getChangeIcon = (change) => {
                     <div class="text-3xl font-bold text-blue-600 mb-2">
                         1.2s
                     </div>
-                    <p class="text-sm text-gray-600">Average Response Time</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                        Average Response Time
+                    </p>
                     <div class="mt-2">
                         <Progress
                             :value="85"
@@ -529,7 +569,9 @@ const getChangeIcon = (change) => {
                     <div class="text-3xl font-bold text-purple-600 mb-2">
                         99.9%
                     </div>
-                    <p class="text-sm text-gray-600">Success Rate</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                        Success Rate
+                    </p>
                     <div class="mt-2">
                         <Progress
                             :value="99.9"

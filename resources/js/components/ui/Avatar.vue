@@ -41,7 +41,7 @@ const emit = defineEmits(["click"]);
 
 const avatarClasses = computed(() => {
     const baseClasses =
-        "inline-block overflow-hidden bg-gray-200 flex-shrink-0";
+        "inline-block overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0";
 
     const sizeClasses = {
         xs: "w-6 h-6",
@@ -72,7 +72,7 @@ const avatarClasses = computed(() => {
 
 const fallbackClasses = computed(() => {
     const baseClasses =
-        "flex items-center justify-center text-gray-600 font-medium";
+        "flex items-center justify-center text-gray-600 dark:text-gray-200 font-medium";
 
     const sizeClasses = {
         xs: "text-xs",

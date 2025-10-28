@@ -33,13 +33,13 @@ const emit = defineEmits(["click"]);
 
 const cardClasses = computed(() => {
     const baseClasses =
-        "bg-white border border-gray-200 transition-all duration-200";
+        "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-all duration-200";
 
     const variantClasses = {
         default: "shadow-sm",
         elevated: "shadow-lg hover:shadow-xl",
         outlined: "shadow-none border-2",
-        filled: "bg-gray-50 border-gray-100 shadow-sm",
+        filled: "bg-gray-50 dark:bg-gray-700 border-gray-100 dark:border-gray-600 shadow-sm",
     };
 
     const paddingClasses = {
@@ -87,7 +87,10 @@ const handleClick = (event) => {
 <template>
     <div :class="cardClasses" @click="handleClick">
         <!-- Card Header -->
-        <div v-if="$slots.header" class="border-b border-gray-200 pb-4 mb-4">
+        <div
+            v-if="$slots.header"
+            class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4"
+        >
             <slot name="header" />
         </div>
 
@@ -97,7 +100,10 @@ const handleClick = (event) => {
         </div>
 
         <!-- Card Footer -->
-        <div v-if="$slots.footer" class="border-t border-gray-200 pt-4 mt-4">
+        <div
+            v-if="$slots.footer"
+            class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4"
+        >
             <slot name="footer" />
         </div>
     </div>
