@@ -17,6 +17,7 @@ class UserSeeder extends Seeder
             'name' => 'Adrian Cecilia Ogalla',
             'email' => 'adrian.cecilia4@gmail.com',
             'password' => Hash::make(config('app.admin_password')),
+            'is_admin' => true,
         ]);
     }
 }

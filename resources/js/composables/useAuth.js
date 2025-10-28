@@ -20,6 +20,7 @@ if (storedUser) {
 
 export function useAuth() {
     const isAuthenticated = computed(() => !!token.value && !!user.value);
+    const isAdmin = computed(() => user.value?.is_admin === true);
 
     const login = async (credentials) => {
         loading.value = true;
@@ -120,6 +121,7 @@ export function useAuth() {
         user: computed(() => user.value),
         token: computed(() => token.value),
         isAuthenticated,
+        isAdmin,
         loading: computed(() => loading.value),
         error: computed(() => error.value),
         login,

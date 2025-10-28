@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
 
 class PersonalAccessToken extends SanctumPersonalAccessToken
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
 
     protected function casts(): array
     {
@@ -16,6 +17,7 @@ class PersonalAccessToken extends SanctumPersonalAccessToken
             'abilities' => 'json',
             'last_used_at' => 'datetime',
             'expires_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
     }
 }

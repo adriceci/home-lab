@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
 class AuditLog extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -31,6 +32,7 @@ class AuditLog extends Model
             'id' => 'string',
             'old_values' => 'array',
             'new_values' => 'array',
+            'deleted_at' => 'datetime',
         ];
     }
 

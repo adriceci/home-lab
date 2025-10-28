@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditLogMiddleware
@@ -16,6 +17,9 @@ class AuditLogMiddleware
     protected $excludedRoutes = [
         'api/audit-logs*', // Exclude audit log endpoints to avoid recursion
         'api/user', // Exclude user endpoint to avoid spam
+        'api/login', // Exclude login - handled by AuthController
+        'api/register', // Exclude register - handled by AuthController
+        'api/logout', // Exclude logout - handled by AuthController
     ];
 
     /**
@@ -71,9 +75,8 @@ class AuditLogMiddleware
             return false;
         }
 
-        // Don't log if user is not authenticated (except for login/register)
-        $authRoutes = ['api/login', 'api/register'];
-        if (!Auth::check() && !$request->is($authRoutes)) {
+        // Only log if user is authenticated (middleware runs after auth middleware)
+        if (!Auth::check()) {
             return false;
         }
 
@@ -108,7 +111,7 @@ class AuditLogMiddleware
             );
         } catch (\Exception $e) {
             // Log the error but don't break the request
-            \Log::error('AuditLogMiddleware failed to log request: ' . $e->getMessage());
+            Log::error('AuditLogMiddleware failed to log request: ' . $e->getMessage());
         }
     }
 
@@ -117,22 +120,9 @@ class AuditLogMiddleware
      */
     protected function determineAction(Request $request): string
     {
-        $route = $request->route();
         $method = $request->method();
-        $path = $request->path();
 
-        // Special cases for authentication
-        if ($path === 'api/login') {
-            return 'login';
-        }
-        if ($path === 'api/register') {
-            return 'register';
-        }
-        if ($path === 'api/logout') {
-            return 'logout';
-        }
-
-        // Determine action based on HTTP method and route
+        // Determine action based on HTTP method
         if ($method === 'POST') {
             return 'create';
         }
@@ -249,11 +239,7 @@ class AuditLogMiddleware
      */
     protected function shouldLogFailedRequest(Request $request, Response $response): bool
     {
-        // Only log failed login attempts
-        if ($request->is('api/login') && $response->getStatusCode() === 422) {
-            return true;
-        }
-
+        // No longer handle failed login attempts here - handled by AuthController
         return false;
     }
 
@@ -262,21 +248,6 @@ class AuditLogMiddleware
      */
     protected function logFailedRequest(Request $request, Response $response): void
     {
-        $action = 'login_failed';
-        $description = "Failed login attempt for email: " . ($request->input('email') ?? 'unknown');
-
-        try {
-            AuditLog::log(
-                action: $action,
-                description: $description,
-                userId: null,
-                ipAddress: $request->ip(),
-                userAgent: $request->userAgent(),
-                url: $request->url(),
-                method: $request->method()
-            );
-        } catch (\Exception $e) {
-            \Log::error('AuditLogMiddleware failed to log failed request: ' . $e->getMessage());
-        }
+        // This method is no longer used - failed requests are handled by controllers
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AuditLogController extends Controller
 {
@@ -19,7 +20,7 @@ class AuditLogController extends Controller
             $query->where('action', $request->action);
         }
 
-        // Filter by user
+        // Filter by user - admins can see all logs or filter by specific user
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
@@ -66,6 +67,11 @@ class AuditLogController extends Controller
             $query->where('created_at', '<=', $request->to_date);
         }
 
+        // Filter by user if specified
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
         $stats = [
             'total_logs' => $query->count(),
             'actions_count' => $query->selectRaw('action, COUNT(*) as count')
@@ -75,8 +81,8 @@ class AuditLogController extends Controller
             'users_count' => $query->whereNotNull('user_id')
                 ->distinct()
                 ->count('user_id'),
-            'failed_logins' => AuditLog::where('action', 'login_failed')->count(),
-            'successful_logins' => AuditLog::where('action', 'login')->count(),
+            'failed_logins' => $query->where('action', 'login_failed')->count(),
+            'successful_logins' => $query->where('action', 'login')->count(),
         ];
 
         return response()->json($stats);

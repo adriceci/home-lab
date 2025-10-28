@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('method', 10)->nullable()->comment('HTTP method used for the action');
             $table->text('description')->nullable()->comment('Human-readable description of the action');
             $table->timestamps();
+            $table->softDeletes()->comment('Soft delete timestamp');
 
             // Indexes for better performance
             $table->index(['user_id', 'created_at']);

@@ -17,8 +17,10 @@ return new class extends Migration
             $table->string('email')->unique()->comment('User email address, must be unique');
             $table->timestamp('email_verified_at')->nullable()->comment('Timestamp when the email was verified');
             $table->string('password')->comment('Hashed password for user authentication');
+            $table->boolean('is_admin')->default(false)->comment('Whether the user is an administrator');
             $table->rememberToken()->comment('Token for "remember me" functionality');
             $table->timestamps();
+            $table->softDeletes()->comment('Soft delete timestamp');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

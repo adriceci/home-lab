@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamp('last_used_at')->nullable()->comment('Timestamp when the token was last used');
             $table->timestamp('expires_at')->nullable()->index()->comment('Timestamp when the token expires');
             $table->timestamps();
+            $table->softDeletes()->comment('Soft delete timestamp');
 
             // Add index for the polymorphic relationship
             $table->index(['tokenable_type', 'tokenable_id']);

@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from "vue";
 import {
     HomeIcon,
     ChartBarIcon,
@@ -15,13 +16,28 @@ import { useAuth } from "@/composables/useAuth";
 
 const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
-const { logout } = useAuth();
+const { logout, isAdmin } = useAuth();
 
-const menuItems = [
+const allMenuItems = [
     { name: "Dashboard", icon: HomeIcon, to: "/dashboard" },
     { name: "Analytics", icon: ChartBarIcon, to: "/analytics" },
-    { name: "Audit Logs", icon: ClipboardDocumentListIcon, to: "/audit-logs" },
+    {
+        name: "Audit Logs",
+        icon: ClipboardDocumentListIcon,
+        to: "/audit-logs",
+        adminOnly: true,
+    },
 ];
+
+// Filter menu items based on user role
+const menuItems = computed(() => {
+    return allMenuItems.filter((item) => {
+        if (item.adminOnly) {
+            return isAdmin.value;
+        }
+        return true;
+    });
+});
 
 const generalItems = [
     { name: "Settings", icon: Cog6ToothIcon, to: "/settings" },
