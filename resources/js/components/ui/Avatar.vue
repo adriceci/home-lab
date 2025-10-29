@@ -41,7 +41,7 @@ const emit = defineEmits(["click"]);
 
 const avatarClasses = computed(() => {
     const baseClasses =
-        "inline-block overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0";
+        "inline-block overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 content-center cursor-pointer";
 
     const sizeClasses = {
         xs: "w-6 h-6",

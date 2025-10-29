@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -51,5 +52,13 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the settings for the user.
+     */
+    public function settings(): HasMany
+    {
+        return $this->hasMany(Setting::class);
     }
 }
