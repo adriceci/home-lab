@@ -66,7 +66,7 @@ const handleItemClick = async (item) => {
 
 <template>
     <aside
-        class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-64 fixed left-0 top-0 z-30 shadow-lg flex flex-col m-6 rounded-2xl h-[calc(100vh-3rem)]"
+        class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-64 fixed left-0 top-0 z-30 shadow-lg flex flex-col m-6 rounded-lg h-[calc(100vh-3rem)]"
     >
         <!-- Logo -->
         <div class="p-6">

@@ -18,6 +18,10 @@ class File extends Model
         'type',
         'mime_type',
         'extension',
+        'virustotal_scan_id',
+        'virustotal_status',
+        'virustotal_results',
+        'virustotal_scanned_at',
     ];
 
     protected function casts(): array
@@ -28,6 +32,10 @@ class File extends Model
             'size' => 'integer',
             'mime_type' => 'string',
             'extension' => 'string',
+            'virustotal_scan_id' => 'string',
+            'virustotal_status' => 'string',
+            'virustotal_results' => 'array',
+            'virustotal_scanned_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',

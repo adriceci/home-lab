@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'virustotal' => [
+        'api_key' => env('VIRUSTOTAL_API_KEY'),
+        'base_url' => env('VIRUSTOTAL_BASE_URL', 'https://www.virustotal.com/api/v3'),
+        'timeout' => env('VIRUSTOTAL_TIMEOUT', 30),
+        'max_retries' => env('VIRUSTOTAL_MAX_RETRIES', 3),
+        'retry_delay' => env('VIRUSTOTAL_RETRY_DELAY', 1000), // milliseconds
+    ],
+
 ];

@@ -202,6 +202,63 @@ class ApiService {
             throw this.handleError(error);
         }
     }
+
+    // Large file upload helper for VirusTotal
+    static async uploadLargeFile(url, file, uploadUrl, onProgress = null) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_url", uploadUrl);
+
+        const config = {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        };
+
+        if (onProgress) {
+            config.onUploadProgress = (progressEvent) => {
+                const percentCompleted = Math.round(
+                    (progressEvent.loaded * 100) / progressEvent.total
+                );
+                onProgress(percentCompleted);
+            };
+        }
+
+        try {
+            const response = await apiClient.post(url, formData, config);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // Direct upload to external URL (for VirusTotal large files)
+    static async uploadToExternalUrl(file, uploadUrl, onProgress = null) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const config = {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        };
+
+        if (onProgress) {
+            config.onUploadProgress = (progressEvent) => {
+                const percentCompleted = Math.round(
+                    (progressEvent.loaded * 100) / progressEvent.total
+                );
+                onProgress(percentCompleted);
+            };
+        }
+
+        try {
+            const response = await axios.post(uploadUrl, formData, config);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
 }
 
 export default ApiService;
