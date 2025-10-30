@@ -37,9 +37,7 @@ services:
     container_name: homelab-nginx-proxy-manager
     restart: unless-stopped
     ports:
-      - "80:80"
       - "81:81"
-      - "443:443"
     volumes:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
