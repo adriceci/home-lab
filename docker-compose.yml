@@ -17,6 +17,20 @@ services:
     ports:
       - "9000:9000"
 
+  nginx-proxy-manager:
+    image: "jc21/nginx-proxy-manager:latest"
+    container_name: homelab-nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - homelab-network
+
   nginx:
     image: nginx:alpine
     container_name: homelab-nginx
