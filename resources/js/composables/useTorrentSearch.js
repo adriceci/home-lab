@@ -7,7 +7,7 @@ const error = ref(null);
 const searchQuery = ref("");
 
 export function useTorrentSearch() {
-    const searchTorrents = async (query) => {
+    const searchTorrents = async (query, categories = []) => {
         if (!query || query.trim().length < 2) {
             return;
         }
@@ -19,6 +19,7 @@ export function useTorrentSearch() {
         try {
             const response = await ApiService.post("/torrents/search", {
                 query: query.trim(),
+                categories: categories,
             });
 
             if (response.success) {
@@ -59,4 +60,3 @@ export function useTorrentSearch() {
         clearError,
     };
 }
-

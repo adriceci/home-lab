@@ -25,10 +25,14 @@ class TorrentSearchController extends Controller
     {
         $validated = $request->validate([
             'query' => 'required|string|min:2|max:255',
+            'categories' => 'nullable|array',
+            'categories.*.name' => 'string',
+            'categories.*.code' => 'integer',
         ]);
 
         try {
-            $results = $this->searchEngine->search($validated['query']);
+            $categories = $validated['categories'] ?? [];
+            $results = $this->searchEngine->search($validated['query'], $categories);
 
             return response()->json([
                 'success' => true,
@@ -44,4 +48,3 @@ class TorrentSearchController extends Controller
         }
     }
 }
-

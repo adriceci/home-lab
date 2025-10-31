@@ -14,15 +14,18 @@ class TorrentSearchEngine
      * Search torrents across all active torrent sites
      *
      * @param string $query
+     * @param array $categories
      * @return array
      */
-    public function search(string $query): array
+    public function search(string $query, array $categories = []): array
     {
         $results = [];
 
         LogEngine::info('torrent_search', '[TorrentSearchEngine] Starting search', [
             'query' => $query,
             'query_length' => strlen($query),
+            'categories' => $categories,
+            'categories_count' => count($categories),
         ]);
 
         // Get all active torrent sites from database
@@ -50,7 +53,7 @@ class TorrentSearchEngine
 
             try {
                 $startTime = microtime(true);
-                $siteResults = $this->searchSite($site, $query);
+                $siteResults = $this->searchSite($site, $query, $categories);
                 $duration = round((microtime(true) - $startTime) * 1000, 2);
 
                 LogEngine::info('torrent_search', '[TorrentSearchEngine] Site search completed', [
@@ -83,9 +86,10 @@ class TorrentSearchEngine
      *
      * @param Domain $site
      * @param string $query
+     * @param array $categories
      * @return array
      */
-    protected function searchSite(Domain $site, string $query): array
+    protected function searchSite(Domain $site, string $query, array $categories = []): array
     {
         try {
             LogEngine::debug('torrent_search', '[TorrentSearchEngine] Getting scraper for site', [
@@ -107,7 +111,7 @@ class TorrentSearchEngine
                 'scraper_class' => get_class($scraper),
             ]);
 
-            return $scraper->search($query);
+            return $scraper->search($query, $categories);
         } catch (Exception $e) {
             LogEngine::error('torrent_search', '[TorrentSearchEngine] Error in searchSite', [
                 'site_name' => $site->name,

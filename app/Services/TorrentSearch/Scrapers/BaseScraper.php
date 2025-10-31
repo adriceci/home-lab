@@ -40,17 +40,19 @@ abstract class BaseScraper implements TorrentScraperInterface
      * Build search URL for the site
      *
      * @param string $query
+     * @param array $categories
      * @return string
      */
-    abstract protected function buildSearchUrl(string $query): string;
+    abstract protected function buildSearchUrl(string $query, array $categories = []): string;
 
     /**
      * Perform a search query on the torrent site
      *
      * @param string $query
+     * @param array $categories
      * @return array
      */
-    public function search(string $query): array
+    public function search(string $query, array $categories = []): array
     {
         $scraperName = $this->getName();
         $startTime = microtime(true);
@@ -58,10 +60,11 @@ abstract class BaseScraper implements TorrentScraperInterface
         LogEngine::info('torrent_search', '[BaseScraper] Starting search', [
             'scraper' => $scraperName,
             'query' => $query,
+            'categories' => $categories,
             'base_url' => $this->getBaseUrl(),
         ]);
 
-        $url = $this->buildSearchUrl($query);
+        $url = $this->buildSearchUrl($query, $categories);
 
         LogEngine::info('torrent_search', '[BaseScraper] Built search URL', [
             'scraper' => $scraperName,

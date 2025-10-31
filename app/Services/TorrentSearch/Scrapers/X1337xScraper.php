@@ -6,9 +6,10 @@ use App\Services\TorrentSearch\TorrentSearchEngine;
 
 class X1337xScraper extends BaseScraper
 {
-    protected function buildSearchUrl(string $query): string
+    protected function buildSearchUrl(string $query, array $categories = []): string
     {
         $baseUrl = rtrim($this->getBaseUrl(), '/');
+        // 1337x doesn't support category filtering in the same way, so we ignore categories for now
         return "{$baseUrl}/search/" . urlencode($query) . "/1/";
     }
 

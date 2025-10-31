@@ -8,9 +8,10 @@ interface TorrentScraperInterface
      * Perform a search query on the torrent site
      *
      * @param string $query The search query
+     * @param array $categories Array of selected categories
      * @return array Array of standardized torrent results
      */
-    public function search(string $query): array;
+    public function search(string $query, array $categories = []): array;
 
     /**
      * Get the base URL of the torrent site
@@ -34,4 +35,3 @@ interface TorrentScraperInterface
      */
     public function getName(): string;
 }
-

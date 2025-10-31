@@ -11,9 +11,9 @@ const { results, loading, error, searchTorrents, clearResults } =
 
 const searchQuery = ref("");
 
-const handleSearch = async (query) => {
+const handleSearch = async (query, categories = []) => {
     if (query && query.trim().length >= 2) {
-        await searchTorrents(query);
+        await searchTorrents(query, categories);
     } else {
         clearResults();
     }

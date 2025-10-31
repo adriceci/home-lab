@@ -7,9 +7,26 @@ use App\Services\LogEngine;
 
 class ThePirateBayScraper extends BaseScraper
 {
-    protected function buildSearchUrl(string $query): string
+    protected function buildSearchUrl(string $query, array $categories = []): string
     {
         $baseUrl = rtrim($this->getBaseUrl(), '/');
+
+        // Build category filter for TPB
+        // TPB uses category codes: 101=Audio, 201=Video, 301=Applications, 401=Games, 600=Other
+        $categoryParam = '';
+        if (!empty($categories)) {
+            $categoryCodes = array_map(function ($cat) {
+                return $cat['code'] ?? null;
+            }, $categories);
+            $categoryCodes = array_filter($categoryCodes);
+
+            if (!empty($categoryCodes)) {
+                // TPB accepts category as comma-separated codes in the URL
+                // Format: /s/?q=query&category=201,301
+                $categoryParam = '&category=' . implode(',', $categoryCodes);
+            }
+        }
+
         // The current TPB structure uses an iframe wrapper. Try to extract iframe URL or use known working alternatives
         // Common TPB proxy URLs: 1.piratebays.to, thepiratebay.org, etc.
         // If baseUrl contains known proxy patterns, use direct search endpoint
@@ -18,9 +35,9 @@ class ThePirateBayScraper extends BaseScraper
             $directUrl = str_replace(['www2.', 'www3.', 'www4.'], '1.', $baseUrl);
             $directUrl = str_replace('thepiratebay3.co', 'piratebays.to', $directUrl);
             $directUrl = str_replace('thepiratebay.org', 'piratebays.to', $directUrl);
-            return rtrim($directUrl, '/') . "/s/?q=" . urlencode($query);
+            return rtrim($directUrl, '/') . "/s/?q=" . urlencode($query) . $categoryParam;
         }
-        return "{$baseUrl}/s/?q=" . urlencode($query);
+        return "{$baseUrl}/s/?q=" . urlencode($query) . $categoryParam;
     }
 
     public function parseResult($html): array
@@ -152,13 +169,22 @@ class ThePirateBayScraper extends BaseScraper
                     ], $this->getName());
                 }
             } else {
-                // Handle table row structure (alternative TPB structure)
+                // Handle table row structure (TPB table structure)
+                // Column order: Type (0), Name (1), Uploaded (2), Magnet (3), Size (4), SE (5), LE (6), ULed by (7)
                 $cells = $xpath->query('.//td', $element);
-                if ($cells->length >= 6) {
+
+                if ($cells->length >= 5) {
+                    // Skip header row
+                    $firstCell = $cells->item(0);
+                    if ($firstCell instanceof \DOMElement && stripos($firstCell->getAttribute('class'), 'header') !== false) {
+                        continue;
+                    }
+
+                    // Column 1: Name (title)
                     $titleCell = $cells->item(1) ?? null;
                     $title = $titleCell ? $getText($titleCell) : '';
 
-                    // Get detail link
+                    // Get detail link from Name cell
                     $detailLink = null;
                     if ($titleCell) {
                         $a = $xpath->query('.//a[1]', $titleCell)->item(0);
@@ -171,25 +197,60 @@ class ThePirateBayScraper extends BaseScraper
                         }
                     }
 
-                    // Magnet link
+                    // Column 2: Uploaded (date)
+                    $date = $cells->item(2) ? $getText($cells->item(2)) : '';
+
+                    // Column 3: Magnet link (icon/link in empty column or image)
                     $magnet = '';
-                    $magnetCell = $cells->item(2) ?? null;
+                    $magnetCell = $cells->item(3) ?? null;
                     if ($magnetCell) {
+                        // Try to find magnet link - could be in an <a> tag or <img> title/data attribute
                         $magnetA = $xpath->query('.//a[contains(@href, "magnet:")]', $magnetCell)->item(0);
                         if ($magnetA instanceof \DOMElement) {
                             $m = $getAttr($magnetA, 'href');
                             if ($m && str_starts_with($m, 'magnet:')) {
                                 $magnet = $m;
                             }
+                        } else {
+                            // Try img with magnet in title or data attributes
+                            $img = $xpath->query('.//img', $magnetCell)->item(0);
+                            if ($img instanceof \DOMElement) {
+                                $imgTitle = $getAttr($img, 'title');
+                                if ($imgTitle && str_starts_with($imgTitle, 'magnet:')) {
+                                    $magnet = $imgTitle;
+                                } else {
+                                    // Try parent link
+                                    $parentLink = $xpath->query('ancestor::a[contains(@href, "magnet:")]', $img)->item(0);
+                                    if ($parentLink instanceof \DOMElement) {
+                                        $m = $getAttr($parentLink, 'href');
+                                        if ($m && str_starts_with($m, 'magnet:')) {
+                                            $magnet = $m;
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    $size = $cells->item(3) ? $getText($cells->item(3)) : '';
-                    $seeders = $cells->item(4) ? (int) preg_replace('/[^0-9]/', '', $getText($cells->item(4))) : 0;
-                    $leechers = $cells->item(5) ? (int) preg_replace('/[^0-9]/', '', $getText($cells->item(5))) : 0;
-                    $date = $cells->item(0) ? $getText($cells->item(0)) : '';
+                    // Column 4: Size
+                    $size = $cells->item(4) ? $getText($cells->item(4)) : '';
+
+                    // Column 5: Seeders (SE)
+                    $seeders = $cells->item(5) ? (int) preg_replace('/[^0-9]/', '', $getText($cells->item(5))) : 0;
+
+                    // Column 6: Leechers (LE)
+                    $leechers = $cells->item(6) ? (int) preg_replace('/[^0-9]/', '', $getText($cells->item(6))) : 0;
 
                     if ($title !== '') {
+                        LogEngine::debug('torrent_search', '[ThePirateBayScraper] Extracted torrent data', [
+                            'title' => substr($title, 0, 50),
+                            'size' => $size,
+                            'date' => $date,
+                            'has_magnet' => !empty($magnet),
+                            'seeders' => $seeders,
+                            'leechers' => $leechers,
+                        ]);
+
                         $results[] = TorrentSearchEngine::standardizeResult([
                             'title' => $title,
                             'size' => $size,
