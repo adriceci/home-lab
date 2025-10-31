@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "adriceci/audit-center",
-            "version": "v1.0.5",
+            "version": "v1.0.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/adriceci/audit-center.git",
-                "reference": "905f77d1dbd2535358f2e3ea29ce424f835722a3"
+                "reference": "b1248b7833eaa8042f54d264d01fefcda772ceec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/adriceci/audit-center/zipball/905f77d1dbd2535358f2e3ea29ce424f835722a3",
-                "reference": "905f77d1dbd2535358f2e3ea29ce424f835722a3",
+                "url": "https://api.github.com/repos/adriceci/audit-center/zipball/b1248b7833eaa8042f54d264d01fefcda772ceec",
+                "reference": "b1248b7833eaa8042f54d264d01fefcda772ceec",
                 "shasum": ""
             },
             "require": {
@@ -64,7 +64,7 @@
                 "issues": "https://github.com/adriceci/audit-center/issues",
                 "source": "https://github.com/adriceci/audit-center"
             },
-            "time": "2025-10-31T17:19:03+00:00"
+            "time": "2025-10-31T17:44:49+00:00"
         },
         {
             "name": "brick/math",

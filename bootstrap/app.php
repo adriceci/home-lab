@@ -1,5 +1,6 @@
 <?php
 
+use AdriCeci\AuditCenter\Http\Middleware\AuditLogMiddleware;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        // Register audit logging middleware
+        $middleware->api(append: [
+            AuditLogMiddleware::class,
         ]);
 
         // Register admin middleware alias
