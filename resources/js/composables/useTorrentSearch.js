@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import ApiService from "@/services/apiService";
+import { useNotifications } from "@/composables/useNotifications";
 
 const results = ref([]);
 const loading = ref(false);
@@ -7,6 +8,8 @@ const error = ref(null);
 const searchQuery = ref("");
 
 export function useTorrentSearch() {
+    const { showSuccess, showError, showInfo } = useNotifications();
+
     const searchTorrents = async (query, categories = []) => {
         if (!query || query.trim().length < 2) {
             return;
@@ -24,13 +27,23 @@ export function useTorrentSearch() {
 
             if (response.success) {
                 results.value = response.data || [];
+                const resultCount = results.value.length;
+                if (resultCount > 0) {
+                    showSuccess(`Found ${resultCount} torrent${resultCount !== 1 ? 's' : ''}`);
+                } else {
+                    showInfo("No torrents found for your search");
+                }
             } else {
-                error.value = response.message || "Error performing search";
+                const errorMessage = response.message || "Error performing search";
+                error.value = errorMessage;
                 results.value = [];
+                showError(errorMessage);
             }
         } catch (err) {
-            error.value = err.message || "Failed to search torrents";
+            const errorMessage = err.message || "Failed to search torrents";
+            error.value = errorMessage;
             results.value = [];
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;

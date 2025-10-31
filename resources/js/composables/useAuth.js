@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import ApiService from "@/services/apiService";
+import { useNotifications } from "@/composables/useNotifications";
 
 const user = ref(null);
 const token = ref(localStorage.getItem("auth_token"));
@@ -12,13 +13,13 @@ if (storedUser) {
     try {
         user.value = JSON.parse(storedUser);
     } catch (e) {
-        console.error("Error parsing stored user:", e);
         localStorage.removeItem("user");
         localStorage.removeItem("auth_token");
     }
 }
 
 export function useAuth() {
+    const { showSuccess, showError } = useNotifications();
     const isAuthenticated = computed(() => !!token.value && !!user.value);
     const isAdmin = computed(() => user.value?.is_admin === true);
 
@@ -36,9 +37,12 @@ export function useAuth() {
 
             user.value = userData;
             token.value = authToken;
+            showSuccess("Login successful");
             return { user: userData, token: authToken };
         } catch (err) {
-            error.value = err.message || "Login failed";
+            const errorMessage = err.message || "Login failed";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -59,9 +63,12 @@ export function useAuth() {
 
             user.value = newUser;
             token.value = authToken;
+            showSuccess("Registration successful");
             return { user: newUser, token: authToken };
         } catch (err) {
-            error.value = err.message || "Registration failed";
+            const errorMessage = err.message || "Registration failed";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -74,8 +81,9 @@ export function useAuth() {
 
         try {
             await ApiService.post("/logout");
+            showSuccess("Logged out successfully");
         } catch (err) {
-            console.error("Logout error:", err);
+            showError("Error during logout");
         } finally {
             // Clear auth data regardless of API response
             localStorage.removeItem("auth_token");
@@ -97,7 +105,9 @@ export function useAuth() {
             user.value = userData;
             return userData;
         } catch (err) {
-            error.value = err.message || "Failed to refresh user data";
+            const errorMessage = err.message || "Failed to refresh user data";
+            error.value = errorMessage;
+            showError(errorMessage);
             // If refresh fails, user might be logged out
             if (err.message?.includes("Unauthorized")) {
                 logout();

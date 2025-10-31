@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import ApiService from "@/services/apiService";
+import { useNotifications } from "@/composables/useNotifications";
 
 const sites = ref([]);
 const loading = ref(false);
@@ -12,6 +13,8 @@ const pagination = ref({
 });
 
 export function useTorrentSites() {
+    const { showSuccess, showError } = useNotifications();
+
     const fetchSites = async (params = {}) => {
         loading.value = true;
         error.value = null;
@@ -29,7 +32,9 @@ export function useTorrentSites() {
             };
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to fetch torrent sites";
+            const errorMessage = err.message || "Failed to fetch torrent sites";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -44,7 +49,9 @@ export function useTorrentSites() {
             const response = await ApiService.get(`/domains/${id}`);
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to fetch torrent site";
+            const errorMessage = err.message || "Failed to fetch torrent site";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -61,9 +68,12 @@ export function useTorrentSites() {
                 type: "torrent",
             });
             await fetchSites();
+            showSuccess("Torrent site created successfully");
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to create torrent site";
+            const errorMessage = err.message || "Failed to create torrent site";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -80,9 +90,12 @@ export function useTorrentSites() {
                 type: "torrent",
             });
             await fetchSites();
+            showSuccess("Torrent site updated successfully");
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to update torrent site";
+            const errorMessage = err.message || "Failed to update torrent site";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -96,8 +109,11 @@ export function useTorrentSites() {
         try {
             await ApiService.delete(`/domains/${id}`);
             await fetchSites();
+            showSuccess("Torrent site deleted successfully");
         } catch (err) {
-            error.value = err.message || "Failed to delete torrent site";
+            const errorMessage = err.message || "Failed to delete torrent site";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;

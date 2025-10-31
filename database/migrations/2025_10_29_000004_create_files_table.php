@@ -15,6 +15,8 @@ return new class extends Migration
             $table->uuid('id')->primary()->comment('Primary UUID for the file');
             $table->string('name')->comment('File name');
             $table->string('path')->comment('File path');
+            $table->enum('storage_disk', ['quarantine', 'local', 'public'])->default('quarantine')->comment('Storage disk where the file is stored');
+            $table->timestamp('quarantined_at')->nullable()->comment('Timestamp when file was placed in quarantine');
             $table->unsignedBigInteger('size')->default(0)->comment('File size in bytes');
             $table->string('type')->comment('File type: movie, series, episode, scan, etc.');
             $table->string('mime_type')->nullable()->comment('MIME type of the file');
@@ -30,6 +32,8 @@ return new class extends Migration
             $table->softDeletes()->comment('Soft delete timestamp');
 
             // Indexes for better performance
+            $table->index('storage_disk');
+            $table->index('quarantined_at');
             $table->index('virustotal_scan_id');
             $table->index('virustotal_status');
             $table->index('type');

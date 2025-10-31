@@ -67,25 +67,36 @@ class VirusTotalService
 
     /**
      * Scan a file with VirusTotal (for files < 32MB)
+     * Accepts storage path from quarantine disk (e.g., 'path/to/file.ext')
      */
-    public function scanFile(string $filePath): array
+    public function scanFile(string $storagePath, string $disk = 'quarantine'): array
     {
-        $this->logRequest('scan_file', "Scanning file: {$filePath}");
+        $this->logRequest('scan_file', "Scanning file from {$disk}: {$storagePath}");
 
-        if (!file_exists($filePath)) {
-            throw new Exception("File not found: {$filePath}");
+        // Ensure we're only accessing quarantine disk
+        if ($disk !== 'quarantine') {
+            throw new Exception("Files can only be scanned from quarantine disk. Requested disk: {$disk}");
         }
 
-        $fileSize = filesize($filePath);
+        if (!Storage::disk($disk)->exists($storagePath)) {
+            throw new Exception("File not found in {$disk}: {$storagePath}");
+        }
+
+        // Get file size using Storage (safe method that doesn't execute the file)
+        $fileSize = Storage::disk($disk)->size($storagePath);
         if ($fileSize > 32 * 1024 * 1024) { // 32MB
             throw new Exception("File too large for direct upload. Use scanLargeFile method instead.");
         }
 
-        $response = $this->makeRequest('POST', '/files', [], $filePath);
+        // Get file content using Storage facade (safe - doesn't execute file)
+        $fileContent = Storage::disk($disk)->get($storagePath);
+        $fileName = basename($storagePath);
+
+        $response = $this->makeRequestWithContent('POST', '/files', [], $fileContent, $fileName);
 
         if ($response->successful()) {
             $data = $response->json();
-            $this->logRequest('scan_file_success', "File scan initiated successfully for: {$filePath}");
+            $this->logRequest('scan_file_success', "File scan initiated successfully for: {$storagePath}");
             return $data;
         }
 
@@ -112,22 +123,36 @@ class VirusTotalService
 
     /**
      * Upload large file to VirusTotal
+     * Accepts storage path from quarantine disk (e.g., 'path/to/file.ext')
      */
-    public function uploadLargeFile(string $filePath, string $uploadUrl): array
+    public function uploadLargeFile(string $storagePath, string $uploadUrl, string $disk = 'quarantine'): array
     {
-        $this->logRequest('upload_large_file', "Uploading large file: {$filePath}");
+        $this->logRequest('upload_large_file', "Uploading large file from {$disk}: {$storagePath}");
 
-        if (!file_exists($filePath)) {
-            throw new Exception("File not found: {$filePath}");
+        // Ensure we're only accessing quarantine disk
+        if ($disk !== 'quarantine') {
+            throw new Exception("Files can only be uploaded from quarantine disk. Requested disk: {$disk}");
         }
 
+        if (!Storage::disk($disk)->exists($storagePath)) {
+            throw new Exception("File not found in {$disk}: {$storagePath}");
+        }
+
+        // Get file content using Storage facade (safe - doesn't execute file)
+        $fileContent = Storage::disk($disk)->get($storagePath);
+        $fileName = basename($storagePath);
+
         $response = Http::timeout($this->timeout)
-            ->attach('file', file_get_contents($filePath), basename($filePath))
+            ->withHeaders([
+                'x-apikey' => $this->apiKey,
+                'Accept' => 'application/json',
+            ])
+            ->attach('file', $fileContent, $fileName)
             ->post($uploadUrl);
 
         if ($response->successful()) {
             $data = $response->json();
-            $this->logRequest('upload_large_file_success', "Large file uploaded successfully: {$filePath}");
+            $this->logRequest('upload_large_file_success', "Large file uploaded successfully: {$storagePath}");
             return $data;
         }
 
@@ -223,12 +248,80 @@ class VirusTotalService
                     ]);
 
                 if ($filePath) {
+                    // DEPRECATED: Use makeRequestWithContent instead for files from Storage
                     $request = $request->attach('file', file_get_contents($filePath), basename($filePath));
                 }
 
                 $response = match (strtoupper($method)) {
                     'GET' => $request->get($url, $data),
                     'POST' => $filePath ? $request->post($url) : $request->post($url, $data),
+                    'PUT' => $request->put($url, $data),
+                    'DELETE' => $request->delete($url),
+                    default => throw new Exception("Unsupported HTTP method: {$method}")
+                };
+
+                // Check for rate limiting
+                if ($response->status() === 429) {
+                    $retryAfter = $response->header('Retry-After') ?? 60;
+                    $this->logRequest('rate_limit', "Rate limited. Waiting {$retryAfter} seconds before retry.");
+                    sleep($retryAfter);
+                    $attempt++;
+                    continue;
+                }
+
+                // If successful or client error (4xx), return response
+                if ($response->successful() || $response->clientError()) {
+                    return $response;
+                }
+
+                // Server error (5xx), retry
+                if ($response->serverError()) {
+                    $attempt++;
+                    if ($attempt < $this->maxRetries) {
+                        $delay = $this->retryDelay * $attempt;
+                        $this->logRequest('retry', "Server error. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries})");
+                        usleep($delay * 1000);
+                    }
+                }
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $this->maxRetries) {
+                    $this->logRequest('max_retries_exceeded', "Max retries exceeded. Last error: " . $e->getMessage());
+                    throw $e;
+                }
+
+                $delay = $this->retryDelay * $attempt;
+                $this->logRequest('retry', "Request failed. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries}): " . $e->getMessage());
+                usleep($delay * 1000);
+            }
+        }
+
+        throw new Exception("Max retries exceeded for {$method} {$endpoint}");
+    }
+
+    /**
+     * Make HTTP request with file content (from Storage) to VirusTotal API with retry logic
+     */
+    private function makeRequestWithContent(string $method, string $endpoint, array $data = [], ?string $fileContent = null, ?string $fileName = null): Response
+    {
+        $url = $this->baseUrl . $endpoint;
+        $attempt = 0;
+
+        while ($attempt < $this->maxRetries) {
+            try {
+                $request = Http::timeout($this->timeout)
+                    ->withHeaders([
+                        'x-apikey' => $this->apiKey,
+                        'Accept' => 'application/json',
+                    ]);
+
+                if ($fileContent && $fileName) {
+                    $request = $request->attach('file', $fileContent, $fileName);
+                }
+
+                $response = match (strtoupper($method)) {
+                    'GET' => $request->get($url, $data),
+                    'POST' => $fileContent ? $request->post($url) : $request->post($url, $data),
                     'PUT' => $request->put($url, $data),
                     'DELETE' => $request->delete($url),
                     default => throw new Exception("Unsupported HTTP method: {$method}")

@@ -1,10 +1,13 @@
 import { ref, computed } from "vue";
 import ApiService from "@/services/apiService";
+import { useNotifications } from "@/composables/useNotifications";
 
 const downloadingIds = ref(new Set());
 const downloadError = ref(null);
 
 export function useTorrentActions() {
+    const { showSuccess, showError } = useNotifications();
+
     /**
      * Download a torrent
      *
@@ -25,6 +28,7 @@ export function useTorrentActions() {
         if (!torrentId) {
             const error = new Error("Torrent identifier not found");
             if (onError) onError(error);
+            showError("Torrent identifier not found");
             throw error;
         }
 
@@ -42,6 +46,9 @@ export function useTorrentActions() {
             });
 
             if (response.success) {
+                const successMessage =
+                    response.message || "Torrent download started successfully";
+                showSuccess(successMessage);
                 if (onSuccess) {
                     onSuccess({ torrent, message: response.message });
                 }
@@ -58,6 +65,7 @@ export function useTorrentActions() {
         } catch (error) {
             const errorMessage = error.message || "Failed to download torrent";
             downloadError.value = errorMessage;
+            showError(errorMessage);
 
             if (onError) {
                 onError({ torrent, error: errorMessage });
@@ -85,18 +93,21 @@ export function useTorrentActions() {
         if (!magnetLink) {
             const error = new Error("Magnet link is required");
             if (onError) onError(error);
+            showError("Magnet link is required");
             throw error;
         }
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             try {
                 await navigator.clipboard.writeText(magnetLink);
+                showSuccess("Magnet link copied to clipboard");
                 if (onSuccess) {
                     onSuccess(magnetLink);
                 }
                 return { success: true };
             } catch (error) {
                 const errorMessage = "Failed to copy magnet link to clipboard";
+                showError(errorMessage);
                 if (onError) {
                     onError(new Error(errorMessage));
                 }
@@ -106,6 +117,7 @@ export function useTorrentActions() {
             // Fallback for browsers that don't support clipboard API
             const error = new Error("Clipboard API not supported");
             if (onError) onError(error);
+            showError("Clipboard API not supported");
             throw error;
         }
     };

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\File;
 use App\Services\VirusTotalService;
+use App\Services\QuarantineService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -14,10 +15,12 @@ use Exception;
 class VirusTotalController extends Controller
 {
     private VirusTotalService $virusTotalService;
+    private QuarantineService $quarantineService;
 
-    public function __construct(VirusTotalService $virusTotalService)
+    public function __construct(VirusTotalService $virusTotalService, QuarantineService $quarantineService)
     {
         $this->virusTotalService = $virusTotalService;
+        $this->quarantineService = $quarantineService;
     }
 
     /**
@@ -85,21 +88,32 @@ class VirusTotalController extends Controller
 
         try {
             $file = $request->file('file');
-            $filePath = $file->getRealPath();
-
-            $result = $this->virusTotalService->scanFile($filePath);
-
-            // Store file information in database
+            
+            // Store file in quarantine first
+            $storagePath = $file->storeAs('uploads', $file->getClientOriginalName(), 'quarantine');
+            
+            // Create file record in quarantine
             $fileRecord = File::create([
                 'name' => $file->getClientOriginalName(),
-                'path' => $file->store('uploads'),
+                'path' => $storagePath,
                 'size' => $file->getSize(),
                 'type' => 'scan',
                 'mime_type' => $file->getMimeType(),
                 'extension' => $file->getClientOriginalExtension(),
-                'virustotal_scan_id' => $result['data']['id'] ?? null,
+                'storage_disk' => 'quarantine',
+                'quarantined_at' => now(),
+                'virustotal_scan_id' => null,
                 'virustotal_status' => 'pending',
                 'virustotal_results' => null
+            ]);
+
+            // Scan file from quarantine using Storage path
+            $result = $this->virusTotalService->scanFile($storagePath, 'quarantine');
+
+            // Update file record with scan ID
+            $fileRecord->update([
+                'virustotal_scan_id' => $result['data']['id'] ?? null,
+                'virustotal_status' => 'scanning',
             ]);
 
             return response()->json([
@@ -154,21 +168,32 @@ class VirusTotalController extends Controller
         try {
             $file = $request->file('file');
             $uploadUrl = $request->upload_url;
-            $filePath = $file->getRealPath();
-
-            $result = $this->virusTotalService->uploadLargeFile($filePath, $uploadUrl);
-
-            // Store file information in database
+            
+            // Store file in quarantine first
+            $storagePath = $file->storeAs('uploads', $file->getClientOriginalName(), 'quarantine');
+            
+            // Create file record in quarantine
             $fileRecord = File::create([
                 'name' => $file->getClientOriginalName(),
-                'path' => $file->store('uploads'),
+                'path' => $storagePath,
                 'size' => $file->getSize(),
                 'type' => 'scan',
                 'mime_type' => $file->getMimeType(),
                 'extension' => $file->getClientOriginalExtension(),
-                'virustotal_scan_id' => $result['data']['id'] ?? null,
+                'storage_disk' => 'quarantine',
+                'quarantined_at' => now(),
+                'virustotal_scan_id' => null,
                 'virustotal_status' => 'pending',
                 'virustotal_results' => null
+            ]);
+
+            // Upload file from quarantine using Storage path
+            $result = $this->virusTotalService->uploadLargeFile($storagePath, $uploadUrl, 'quarantine');
+
+            // Update file record with scan ID
+            $fileRecord->update([
+                'virustotal_scan_id' => $result['data']['id'] ?? null,
+                'virustotal_status' => 'scanning',
             ]);
 
             return response()->json([
@@ -196,16 +221,38 @@ class VirusTotalController extends Controller
             // Update file record if it exists
             $fileRecord = File::where('virustotal_scan_id', $id)->first();
             if ($fileRecord) {
-                $fileRecord->update([
-                    'virustotal_status' => 'completed',
-                    'virustotal_results' => $result
-                ]);
+                // Check if file is malicious
+                $isMalicious = $this->isFileMalicious($result);
+                
+                if ($isMalicious) {
+                    // Handle malicious file: delete and log
+                    $this->quarantineService->handleMaliciousFile($fileRecord, $result);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'data' => $result,
+                        'message' => 'File report retrieved successfully. File was rejected due to security threats.',
+                        'rejected' => true
+                    ]);
+                } else {
+                    // File is clean, move from quarantine to normal storage
+                    if ($fileRecord->storage_disk === 'quarantine') {
+                        $this->quarantineService->moveToStorage($fileRecord, 'local');
+                    }
+                    
+                    $fileRecord->update([
+                        'virustotal_status' => 'completed',
+                        'virustotal_results' => $result,
+                        'virustotal_scanned_at' => now(),
+                    ]);
+                }
             }
 
             return response()->json([
                 'success' => true,
                 'data' => $result,
-                'message' => 'File report retrieved successfully'
+                'message' => 'File report retrieved successfully',
+                'rejected' => false
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -213,6 +260,38 @@ class VirusTotalController extends Controller
                 'message' => 'Failed to get file report: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Check if file is malicious based on VirusTotal response
+     */
+    private function isFileMalicious(array $virusTotalResponse): bool
+    {
+        // Check analysis stats
+        if (isset($virusTotalResponse['data']['attributes']['last_analysis_stats'])) {
+            $stats = $virusTotalResponse['data']['attributes']['last_analysis_stats'];
+            
+            // If any security vendor flagged it as malicious or suspicious, reject it
+            if (isset($stats['malicious']) && $stats['malicious'] > 0) {
+                return true;
+            }
+            
+            // Optional: also reject if suspicious (you may want to adjust this policy)
+            if (isset($stats['suspicious']) && $stats['suspicious'] > 0) {
+                return true;
+            }
+        }
+
+        // Check reputation
+        if (isset($virusTotalResponse['data']['attributes']['reputation'])) {
+            $reputation = $virusTotalResponse['data']['attributes']['reputation'];
+            // Reputation < 0 typically means malicious
+            if ($reputation < 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

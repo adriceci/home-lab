@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import ApiService from "@/services/apiService";
+import { useNotifications } from "@/composables/useNotifications";
 
 // Global state
 const loading = ref(false);
@@ -10,6 +11,8 @@ const quotaInfo = ref(null);
 const isConfigured = ref(false);
 
 export function useVirusTotal() {
+    const { showSuccess, showError, showInfo } = useNotifications();
+
     // Computed properties
     const isLoading = computed(() => loading.value);
     const hasError = computed(() => !!error.value);
@@ -45,9 +48,12 @@ export function useVirusTotal() {
                 url,
             });
             scanResult.value = response.data;
+            showSuccess("URL scan started successfully");
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to scan URL";
+            const errorMessage = err.message || "Failed to scan URL";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -68,7 +74,9 @@ export function useVirusTotal() {
             report.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get URL report";
+            const errorMessage = err.message || "Failed to get URL report";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -92,7 +100,9 @@ export function useVirusTotal() {
                 return await scanSmallFile(file, onProgress);
             }
         } catch (err) {
-            error.value = err.message || "Failed to scan file";
+            const errorMessage = err.message || "Failed to scan file";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -128,9 +138,12 @@ export function useVirusTotal() {
                 onProgress
             );
             scanResult.value = response.data;
+            showSuccess("File scan started successfully");
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to scan small file";
+            const errorMessage = err.message || "Failed to scan small file";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         }
     };
@@ -154,9 +167,12 @@ export function useVirusTotal() {
                 onProgress
             );
             scanResult.value = response.data;
+            showSuccess("Large file scan started successfully");
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to scan large file";
+            const errorMessage = err.message || "Failed to scan large file";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         }
     };
@@ -175,7 +191,9 @@ export function useVirusTotal() {
             report.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get file report";
+            const errorMessage = err.message || "Failed to get file report";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -196,7 +214,9 @@ export function useVirusTotal() {
             report.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get domain information";
+            const errorMessage = err.message || "Failed to get domain information";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -215,7 +235,9 @@ export function useVirusTotal() {
             report.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get IP information";
+            const errorMessage = err.message || "Failed to get IP information";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -236,7 +258,9 @@ export function useVirusTotal() {
             report.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get file analysis";
+            const errorMessage = err.message || "Failed to get file analysis";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -305,7 +329,9 @@ export function useVirusTotal() {
             quotaInfo.value = response.data;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to get quota information";
+            const errorMessage = err.message || "Failed to get quota information";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;
@@ -324,7 +350,9 @@ export function useVirusTotal() {
             isConfigured.value = response.data.configured;
             return response;
         } catch (err) {
-            error.value = err.message || "Failed to check configuration";
+            const errorMessage = err.message || "Failed to check configuration";
+            error.value = errorMessage;
+            showError(errorMessage);
             throw err;
         } finally {
             loading.value = false;

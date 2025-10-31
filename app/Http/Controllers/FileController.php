@@ -10,10 +10,22 @@ class FileController extends Controller
 {
     /**
      * Display a listing of files.
+     * Files in quarantine are excluded by default for security reasons.
      */
     public function index(Request $request)
     {
         $query = File::query();
+
+        // Exclude files in quarantine by default (security measure)
+        // Only show quarantine files if explicitly requested with include_quarantine=true
+        if (!$request->boolean('include_quarantine')) {
+            $query->where('storage_disk', '!=', 'quarantine');
+        }
+
+        // Filter by storage_disk
+        if ($request->filled('storage_disk')) {
+            $query->where('storage_disk', $request->storage_disk);
+        }
 
         // Filter by type
         if ($request->filled('type')) {
@@ -67,17 +79,33 @@ class FileController extends Controller
 
     /**
      * Display the specified file.
+     * Files in quarantine cannot be accessed through this endpoint for security reasons.
      */
     public function show(File $file)
     {
+        // Prevent access to files in quarantine
+        if ($file->storage_disk === 'quarantine') {
+            return response()->json([
+                'error' => 'Files in quarantine cannot be accessed directly for security reasons.'
+            ], 403);
+        }
+
         return response()->json($file);
     }
 
     /**
      * Update the specified file.
+     * Files in quarantine cannot be updated through this endpoint.
      */
     public function update(Request $request, File $file)
     {
+        // Prevent modification of files in quarantine
+        if ($file->storage_disk === 'quarantine') {
+            return response()->json([
+                'error' => 'Files in quarantine cannot be modified for security reasons.'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'path' => 'nullable|string|max:2048',
@@ -98,12 +126,23 @@ class FileController extends Controller
 
     /**
      * Remove the specified file.
+     * Files in quarantine cannot be deleted through this endpoint - use QuarantineService instead.
      */
     public function destroy(File $file)
     {
-        // Optionally delete the physical file
-        if ($file->path && Storage::exists($file->path)) {
-            Storage::delete($file->path);
+        // Prevent deletion of files in quarantine through this endpoint
+        // Quarantine files should be managed through QuarantineService
+        if ($file->storage_disk === 'quarantine') {
+            return response()->json([
+                'error' => 'Files in quarantine cannot be deleted through this endpoint. Use QuarantineService for quarantine management.'
+            ], 403);
+        }
+
+        // Delete the physical file using the correct disk
+        if ($file->path && $file->storage_disk) {
+            if (Storage::disk($file->storage_disk)->exists($file->path)) {
+                Storage::disk($file->storage_disk)->delete($file->path);
+            }
         }
 
         $file->delete();
