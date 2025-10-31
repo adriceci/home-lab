@@ -19,9 +19,6 @@ return new class extends Migration
             $table->timestamp('quarantined_at')->nullable()->comment('Timestamp when file was placed in quarantine');
             $table->unsignedBigInteger('size')->default(0)->comment('File size in bytes');
             $table->string('type')->comment('File type: movie, series, episode, scan, etc.');
-            $table->string('mime_type')->nullable()->comment('MIME type of the file');
-            $table->string('extension')->nullable()->comment('File extension');
-
             // Download status
             $table->enum('download_status', [
                 'pending',
@@ -37,7 +34,9 @@ return new class extends Migration
                 'completed',
                 'failed',
                 'cancelled',
-            ])->nullable()->after('type')->comment('Download process status');
+            ])->nullable()->comment('Download process status');
+            $table->string('mime_type')->nullable()->comment('MIME type of the file');
+            $table->string('extension')->nullable()->comment('File extension');
 
             // VirusTotal fields
             $table->string('virustotal_scan_id')->nullable()->comment('VirusTotal scan ID');
