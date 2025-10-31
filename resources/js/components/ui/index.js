@@ -6,3 +6,4 @@ export { default as Input } from "./Input.vue";
 export { default as Avatar } from "./Avatar.vue";
 export { default as Progress } from "./Progress.vue";
 export { default as Search } from "./Search.vue";
+export { default as Table } from "./Table.vue";

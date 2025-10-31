@@ -7,6 +7,7 @@ import {
     CheckIcon,
     XMarkIcon,
 } from "@heroicons/vue/24/outline";
+import { Table } from "@/components/ui";
 import { useTorrentSites } from "@/composables/useTorrentSites";
 
 const {
@@ -87,6 +88,43 @@ const handleDelete = async (site) => {
     }
 };
 
+const columns = [
+    {
+        key: "name",
+        label: "Nombre",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "url",
+        label: "URL",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "description",
+        label: "Descripción",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "is_active",
+        label: "Estado",
+        type: "boolean",
+        sortable: true,
+        sortFn: (a, b) => {
+            return a === b ? 0 : a ? 1 : -1;
+        },
+    },
+    {
+        key: "actions",
+        label: "Acciones",
+        sortable: false,
+        searchable: false,
+        align: "right",
+    },
+];
+
 onMounted(() => {
     fetchSites();
 });
@@ -126,112 +164,83 @@ onMounted(() => {
         </div>
 
         <!-- Sites Table -->
-        <div
+        <Table
             v-else
-            class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
+            :data="sites"
+            :columns="columns"
+            :loading="loading"
+            :items-per-page="10"
         >
-            <div class="overflow-x-auto">
-                <table
-                    class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+            <!-- Name Column -->
+            <template #cell-name="{ value }">
+                <div
+                    class="text-sm font-medium text-gray-900 dark:text-white"
                 >
-                    <thead class="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                            >
-                                Nombre
-                            </th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                            >
-                                URL
-                            </th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                            >
-                                Descripción
-                            </th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                            >
-                                Estado
-                            </th>
-                            <th
-                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                            >
-                                Acciones
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody
-                        class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                    {{ value }}
+                </div>
+            </template>
+
+            <!-- URL Column -->
+            <template #cell-url="{ value }">
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    <a
+                        :href="value"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-blue-600 dark:text-blue-400 hover:underline"
+                        @click.stop
                     >
-                        <tr
-                            v-for="site in sites"
-                            :key="site.id"
-                            class="hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div
-                                    class="text-sm font-medium text-gray-900 dark:text-white"
-                                >
-                                    {{ site.name }}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm text-gray-500 dark:text-gray-400">
-                                    <a
-                                        :href="site.url"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="text-blue-600 dark:text-blue-400 hover:underline"
-                                    >
-                                        {{ site.url }}
-                                    </a>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div
-                                    class="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate"
-                                >
-                                    {{ site.description || "N/A" }}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    :class="[
-                                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                                        site.is_active
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
-                                    ]"
-                                >
-                                    {{ site.is_active ? "Activo" : "Inactivo" }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex items-center justify-end space-x-2">
-                                    <button
-                                        @click="openEditModal(site)"
-                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                    >
-                                        <PencilIcon class="w-4 h-4 mr-1" />
-                                        Editar
-                                    </button>
-                                    <button
-                                        @click="handleDelete(site)"
-                                        class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
-                                    >
-                                        <TrashIcon class="w-4 h-4 mr-1" />
-                                        Eliminar
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                        {{ value }}
+                    </a>
+                </div>
+            </template>
+
+            <!-- Description Column -->
+            <template #cell-description="{ value }">
+                <div
+                    class="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate"
+                >
+                    {{ value || "N/A" }}
+                </div>
+            </template>
+
+            <!-- Status Column -->
+            <template #cell-is_active="{ value }">
+                <span
+                    :class="[
+                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                        value
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+                    ]"
+                >
+                    {{ value ? "Activo" : "Inactivo" }}
+                </span>
+            </template>
+
+            <!-- Actions Column -->
+            <template #cell-actions="{ row }">
+                <div
+                    class="flex items-center justify-end space-x-2"
+                    @click.stop
+                >
+                    <button
+                        @click="openEditModal(row)"
+                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    >
+                        <PencilIcon class="w-4 h-4 mr-1" />
+                        Editar
+                    </button>
+                    <button
+                        @click="handleDelete(row)"
+                        class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                    >
+                        <TrashIcon class="w-4 h-4 mr-1" />
+                        Eliminar
+                    </button>
+                </div>
+            </template>
+        </Table>
 
         <!-- Create/Edit Modal -->
         <div
@@ -335,4 +344,3 @@ onMounted(() => {
         </div>
     </div>
 </template>
-

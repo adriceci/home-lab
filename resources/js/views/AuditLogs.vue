@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { Table } from "@/components/ui";
 import { useAuditLogs } from "@/composables/useAuditLogs";
 
 const {
@@ -63,6 +64,39 @@ const getActionBadgeClass = (action) => {
 const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
 };
+
+const columns = [
+    {
+        key: "action",
+        label: "Action",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "user.name",
+        label: "User",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "description",
+        label: "Description",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "ip_address",
+        label: "IP Address",
+        type: "string",
+        sortable: true,
+    },
+    {
+        key: "created_at",
+        label: "Date",
+        type: "date",
+        sortable: true,
+    },
+];
 
 onMounted(() => {
     loadData();
@@ -272,88 +306,59 @@ onMounted(() => {
     </div>
 
     <!-- Audit Logs Table -->
-    <div
-        v-else
-        class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
-    >
-        <div class="overflow-x-auto">
-            <table
-                class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
-            >
-                <thead class="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                        >
-                            Action
-                        </th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                        >
-                            User
-                        </th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                        >
-                            Description
-                        </th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                        >
-                            IP Address
-                        </th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                        >
-                            Date
-                        </th>
-                    </tr>
-                </thead>
-                <tbody
-                    class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+    <div v-else class="space-y-4">
+        <Table
+            :data="auditLogs"
+            :columns="columns"
+            :loading="loading"
+            :enable-pagination="false"
+            :items-per-page="100"
+        >
+            <!-- Action Column -->
+            <template #cell-action="{ value }">
+                <span
+                    :class="[
+                        getActionBadgeClass(value),
+                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                    ]"
                 >
-                    <tr
-                        v-for="log in auditLogs"
-                        :key="log.id"
-                        class="hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span
-                                :class="getActionBadgeClass(log.action)"
-                                class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                            >
-                                {{ log.action }}
-                            </span>
-                        </td>
-                        <td
-                            class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
-                        >
-                            {{ log.user?.name || "System" }}
-                        </td>
-                        <td
-                            class="px-6 py-4 text-sm text-gray-900 dark:text-white"
-                        >
-                            {{ log.description }}
-                        </td>
-                        <td
-                            class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
-                        >
-                            {{ log.ip_address }}
-                        </td>
-                        <td
-                            class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
-                        >
-                            {{ formatDate(log.created_at) }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                    {{ value }}
+                </span>
+            </template>
 
-        <!-- Pagination -->
+            <!-- User Column -->
+            <template #cell-user.name="{ row }">
+                <span class="text-sm text-gray-900 dark:text-white">
+                    {{ row.user?.name || "System" }}
+                </span>
+            </template>
+
+            <!-- Description Column -->
+            <template #cell-description="{ value }">
+                <span class="text-sm text-gray-900 dark:text-white">
+                    {{ value }}
+                </span>
+            </template>
+
+            <!-- IP Address Column -->
+            <template #cell-ip_address="{ value }">
+                <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ value }}
+                </span>
+            </template>
+
+            <!-- Date Column -->
+            <template #cell-created_at="{ value }">
+                <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ formatDate(value) }}
+                </span>
+            </template>
+        </Table>
+
+        <!-- Server-side Pagination -->
         <div
             v-if="pagination.last_page > 1"
-            class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6"
+            class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6 rounded-lg shadow"
         >
             <div class="flex-1 flex justify-between sm:hidden">
                 <button
