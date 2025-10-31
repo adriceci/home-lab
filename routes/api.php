@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\VirusTotalController;
+use App\Http\Controllers\TorrentSearchController;
+use App\Http\Controllers\DomainController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -35,6 +37,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Utility endpoints
         Route::get('/quota', [VirusTotalController::class, 'getQuotaInfo']);
         Route::get('/configured', [VirusTotalController::class, 'isConfigured']);
+    });
+
+    // Torrent Search API routes
+    Route::prefix('torrents')->group(function () {
+        Route::post('/search', [TorrentSearchController::class, 'search']);
+    });
+
+    // Domain/Torrent Sites API routes
+    Route::prefix('domains')->group(function () {
+        Route::get('/', [DomainController::class, 'index']);
+        Route::post('/', [DomainController::class, 'store']);
+        Route::get('/{domain}', [DomainController::class, 'show']);
+        Route::put('/{domain}', [DomainController::class, 'update']);
+        Route::delete('/{domain}', [DomainController::class, 'destroy']);
     });
 });
 
