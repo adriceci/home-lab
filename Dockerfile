@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    libzip-dev
+    libzip-dev \
+    supervisor
 
 # Limpiar caché
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -22,6 +23,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Establecer directorio de trabajo
 WORKDIR /var/www
+
+# Crear directorios necesarios para Supervisor
+RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor/conf.d
+
+# Copiar archivos de configuración de Supervisor
+COPY supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY supervisor/laravel-scheduler.conf /etc/supervisor/conf.d/laravel-scheduler.conf
+COPY supervisor/laravel-worker.conf /etc/supervisor/conf.d/laravel-worker.conf
 
 # Copiar archivos de la aplicación
 COPY . /var/www
@@ -37,4 +46,8 @@ RUN chown -R www-data:www-data /var/www \
 # Exponer puerto 9000 para PHP-FPM
 EXPOSE 9000
 
-CMD ["php-fpm"]
+# Script de inicio que ejecuta PHP-FPM y Supervisor
+COPY supervisor/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
