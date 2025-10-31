@@ -52,6 +52,75 @@ class AuditLogController extends Controller
     }
 
     /**
+     * Store a newly created audit log.
+     * 
+     * Note: Audit logs are typically created automatically by the system.
+     * This method is provided for completeness but should be used sparingly.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'nullable|string|exists:users,id',
+            'action' => 'required|string|max:255',
+            'model_type' => 'nullable|string|max:255',
+            'model_id' => 'nullable|string|max:255',
+            'old_values' => 'nullable|array',
+            'new_values' => 'nullable|array',
+            'ip_address' => 'nullable|ip',
+            'user_agent' => 'nullable|string|max:500',
+            'url' => 'nullable|string|max:2048',
+            'method' => 'nullable|string|max:10',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $auditLog = AuditLog::create($validated);
+        $auditLog->load('user');
+
+        return response()->json($auditLog, 201);
+    }
+
+    /**
+     * Update the specified audit log.
+     * 
+     * Note: Audit logs are typically immutable for historical integrity.
+     * This method is provided for completeness but should be used sparingly.
+     */
+    public function update(Request $request, AuditLog $auditLog)
+    {
+        $validated = $request->validate([
+            'user_id' => 'nullable|string|exists:users,id',
+            'action' => 'sometimes|required|string|max:255',
+            'model_type' => 'nullable|string|max:255',
+            'model_id' => 'nullable|string|max:255',
+            'old_values' => 'nullable|array',
+            'new_values' => 'nullable|array',
+            'ip_address' => 'nullable|ip',
+            'user_agent' => 'nullable|string|max:500',
+            'url' => 'nullable|string|max:2048',
+            'method' => 'nullable|string|max:10',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        $auditLog->update($validated);
+        $auditLog->load('user');
+
+        return response()->json($auditLog);
+    }
+
+    /**
+     * Remove the specified audit log.
+     * 
+     * Note: Audit logs are typically preserved for compliance and security.
+     * This method uses soft delete to maintain data integrity.
+     */
+    public function destroy(AuditLog $auditLog)
+    {
+        $auditLog->delete();
+
+        return response()->json(['message' => 'Audit log deleted successfully']);
+    }
+
+    /**
      * Get audit log statistics.
      */
     public function stats(Request $request)
