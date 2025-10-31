@@ -78,23 +78,7 @@ class TorrentSearchEngine
             'query' => $query,
         ]);
 
-        // Filter results to only include torrents with seeders > 100 AND leechers > 100
-        $filteredResults = array_filter($results, function ($result) {
-            $seeders = (int) ($result['seeders'] ?? 0);
-            $leechers = (int) ($result['leechers'] ?? 0);
-            return $seeders > 100 && $leechers > 100;
-        });
-
-        // Reset array keys to maintain sequential indexing
-        $filteredResults = array_values($filteredResults);
-
-        LogEngine::info('torrent_search', '[TorrentSearchEngine] Results filtered by seeders/leechers', [
-            'total_results_before_filter' => count($results),
-            'total_results_after_filter' => count($filteredResults),
-            'query' => $query,
-        ]);
-
-        return $filteredResults;
+        return $results;
     }
 
     /**
