@@ -3,7 +3,7 @@ import { useAuth } from "@/composables/useAuth";
 
 import Dashboard from "@/views/Dashboard.vue";
 import Analytics from "@/views/Analytics.vue";
-import AuditLogs from "@/views/AuditLogs.vue";
+import AuditLogs from "@/vendor/audit-center/components/AuditLogs.vue";
 import Login from "@/views/Login.vue";
 import NotFound from "@/views/system/NotFound.vue";
 import AppLayout from "@/components/layouts/AppLayout.vue";

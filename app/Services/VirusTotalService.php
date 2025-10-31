@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\AuditLog;
 use App\Models\File;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Auth;
@@ -279,21 +278,7 @@ class VirusTotalService
      */
     private function logRequest(string $action, string $description): void
     {
-        try {
-            $userId = Auth::check() ? Auth::id() : null;
-
-            AuditLog::log(
-                action: "virustotal_{$action}",
-                description: $description,
-                userId: $userId,
-                ipAddress: request()->ip(),
-                userAgent: request()->userAgent(),
-                url: request()->url(),
-                method: request()->method()
-            );
-        } catch (Exception $e) {
-            Log::error("Failed to log VirusTotal request: " . $e->getMessage());
-        }
+        // Audit logging removed - will be handled by audit-center package middleware
     }
 
     /**

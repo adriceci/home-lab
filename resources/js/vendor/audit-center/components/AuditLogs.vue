@@ -1,7 +1,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { useAuditLogs } from "../composables/useAuditLogs";
+
+// Import Table component from the consuming app
+// This path will work after publishing to resources/js/vendor/audit-center
+// The consuming app should have a Table component at @/components/ui
 import { Table } from "@/components/ui";
-import { useAuditLogs } from "@/composables/useAuditLogs";
 
 const {
     auditLogs,
@@ -423,3 +427,4 @@ onMounted(() => {
         </div>
     </div>
 </template>
+

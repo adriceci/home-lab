@@ -64,8 +64,53 @@ apiClient.interceptors.response.use(
 // API Service class
 class ApiService {
     // Generic CRUD methods
-    static async get(url, params = {}) {
+    static async get(url, params = {}, requireAuth = true) {
         try {
+            // For public endpoints, create a separate axios instance without auth interceptors
+            if (!requireAuth) {
+                // If URL starts with '/', it's an absolute path, use baseURL as root
+                // Otherwise, use baseURL as prefix
+                const publicClient = axios.create({
+                    baseURL: url.startsWith('/') ? "" : "/api",
+                    timeout: 10000,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                });
+                const response = await publicClient.get(url, { params });
+                return response.data;
+            }
+            
+            // For authenticated endpoints, handle absolute paths
+            if (url.startsWith('/')) {
+                const absoluteClient = axios.create({
+                    baseURL: "",
+                    timeout: 10000,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                });
+                
+                // Add auth token
+                const token = localStorage.getItem("auth_token");
+                if (token) {
+                    absoluteClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+                }
+                
+                // Add CSRF token
+                const csrfToken = document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute("content");
+                if (csrfToken) {
+                    absoluteClient.defaults.headers.common["X-CSRF-TOKEN"] = csrfToken;
+                }
+                
+                const response = await absoluteClient.get(url, { params });
+                return response.data;
+            }
+            
             const response = await apiClient.get(url, { params });
             return response.data;
         } catch (error) {

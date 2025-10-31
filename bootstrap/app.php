@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\AuditLogMiddleware;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,11 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class,
-        ]);
-
-        // Add audit logging middleware to API routes
-        $middleware->api(append: [
-            AuditLogMiddleware::class,
         ]);
 
         // Register admin middleware alias

@@ -3,7 +3,7 @@ import { computed } from "vue";
 import {
     HomeIcon,
     ChartBarIcon,
-    ClipboardDocumentListIcon,
+    DocumentTextIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
     SunIcon,
@@ -18,20 +18,22 @@ const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
 const { logout, isAdmin } = useAuth();
 
-const allMenuItems = [
-    { name: "Dashboard", icon: HomeIcon, to: "/dashboard" },
-    { name: "Analytics", icon: ChartBarIcon, to: "/analytics" },
-    {
-        name: "Audit Logs",
-        icon: ClipboardDocumentListIcon,
-        to: "/audit-logs",
-        adminOnly: true,
-    },
-];
+const allMenuItems = computed(() => {
+    return [
+        { name: "Dashboard", icon: HomeIcon, to: "/dashboard" },
+        { name: "Analytics", icon: ChartBarIcon, to: "/analytics" },
+        {
+            name: "Audit Logs",
+            icon: DocumentTextIcon,
+            to: "/audit-logs",
+            adminOnly: true,
+        },
+    ];
+});
 
 // Filter menu items based on user role
 const menuItems = computed(() => {
-    return allMenuItems.filter((item) => {
+    return allMenuItems.value.filter((item) => {
         if (item.adminOnly) {
             return isAdmin.value;
         }
