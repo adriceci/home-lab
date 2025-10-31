@@ -47,4 +47,24 @@ class TorrentSearchController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Download torrent (temporary placeholder)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function download(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'magnet_link' => 'nullable|string',
+            'torrent_link' => 'nullable|string',
+        ]);
+
+        // Temporary placeholder - will implement actual download logic later
+        return response()->json([
+            'success' => true,
+            'message' => 'Descargando....',
+        ]);
+    }
 }

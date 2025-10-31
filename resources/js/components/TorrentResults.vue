@@ -7,6 +7,7 @@ import {
     UserGroupIcon,
 } from "@heroicons/vue/24/outline";
 import { Table } from "@/components/ui";
+import { useTorrentActions } from "@/composables/useTorrentActions";
 
 const props = defineProps({
     results: {
@@ -27,11 +28,41 @@ const emit = defineEmits(["copyMagnet", "download"]);
 
 const hasResults = computed(() => props.results && props.results.length > 0);
 
-const copyMagnetLink = (magnetLink) => {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(magnetLink).then(() => {
-            emit("copyMagnet", magnetLink);
-        });
+// Use torrent actions composable
+const { downloadTorrent, copyMagnetLink, isDownloading, downloadError } =
+    useTorrentActions();
+
+const handleCopyMagnetLink = async (magnetLink) => {
+    try {
+        await copyMagnetLink(
+            magnetLink,
+            (link) => {
+                emit("copyMagnet", link);
+            },
+            (error) => {
+                console.error("Error copying magnet link:", error);
+            }
+        );
+    } catch (error) {
+        console.error("Error copying magnet link:", error);
+    }
+};
+
+const handleDownload = async (row) => {
+    try {
+        await downloadTorrent(
+            row,
+            ({ torrent, message }) => {
+                emit("download", { row: torrent, message });
+                console.log(message);
+            },
+            ({ torrent, error }) => {
+                console.error("Error downloading torrent:", error);
+                emit("download", { row: torrent, error });
+            }
+        );
+    } catch (error) {
+        // Error is already handled in the composable callback
     }
 };
 
@@ -203,12 +234,22 @@ const columns = [
                 >
                     <button
                         v-if="row.magnet_link"
-                        @click="copyMagnetLink(row.magnet_link)"
+                        @click="handleCopyMagnetLink(row.magnet_link)"
                         class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                         title="Copiar magnet link"
                     >
                         <LinkIcon class="w-4 h-4 mr-1" />
                         Magnet
+                    </button>
+                    <button
+                        @click="handleDownload(row)"
+                        :disabled="isDownloading(row)"
+                        class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Descargar torrent"
+                    >
+                        <ArrowDownTrayIcon class="w-4 h-4 mr-1" />
+                        <span v-if="isDownloading(row)">...</span>
+                        <span v-else>Descargar</span>
                     </button>
                     <a
                         v-if="row.source_url"
@@ -219,7 +260,6 @@ const columns = [
                         title="Ver en fuente original"
                         @click.stop
                     >
-                        <ArrowDownTrayIcon class="w-4 h-4 mr-1" />
                         Ver
                     </a>
                 </div>

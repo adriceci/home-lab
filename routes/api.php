@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Torrent Search API routes
     Route::prefix('torrents')->group(function () {
         Route::post('/search', [TorrentSearchController::class, 'search']);
+        Route::post('/download', [TorrentSearchController::class, 'download']);
     });
 
     // Domain/Torrent Sites API routes
