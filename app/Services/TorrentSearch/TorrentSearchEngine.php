@@ -4,7 +4,7 @@ namespace App\Services\TorrentSearch;
 
 use App\Models\Domain;
 use App\Services\TorrentSearch\Contracts\TorrentScraperInterface;
-use Illuminate\Support\Facades\Log;
+use App\Services\LogEngine;
 use Illuminate\Support\Facades\Http;
 use Exception;
 
@@ -20,25 +20,60 @@ class TorrentSearchEngine
     {
         $results = [];
 
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Starting search', [
+            'query' => $query,
+            'query_length' => strlen($query),
+        ]);
+
         // Get all active torrent sites from database
         $sites = Domain::where('type', 'torrent')
             ->where('is_active', true)
             ->get();
 
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Found active torrent sites', [
+            'sites_count' => $sites->count(),
+            'sites' => $sites->pluck('name')->toArray(),
+        ]);
+
         if ($sites->isEmpty()) {
+            LogEngine::warning('torrent_search', '[TorrentSearchEngine] No active torrent sites found');
             return $results;
         }
 
         // Search each site (sequentially for now to avoid overwhelming servers)
         foreach ($sites as $site) {
+            LogEngine::info('torrent_search', '[TorrentSearchEngine] Searching site', [
+                'site_name' => $site->name,
+                'site_url' => $site->url,
+                'site_id' => $site->id,
+            ]);
+
             try {
+                $startTime = microtime(true);
                 $siteResults = $this->searchSite($site, $query);
+                $duration = round((microtime(true) - $startTime) * 1000, 2);
+
+                LogEngine::info('torrent_search', '[TorrentSearchEngine] Site search completed', [
+                    'site_name' => $site->name,
+                    'results_count' => count($siteResults),
+                    'duration_ms' => $duration,
+                ]);
+
                 $results = array_merge($results, $siteResults);
             } catch (Exception $e) {
-                Log::error('Torrent search error for ' . $site->name . ': ' . $e->getMessage());
+                LogEngine::error('torrent_search', '[TorrentSearchEngine] Site search failed', [
+                    'site_name' => $site->name,
+                    'error_message' => $e->getMessage(),
+                    'error_trace' => $e->getTraceAsString(),
+                ]);
                 continue;
             }
         }
+
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Search completed', [
+            'total_results' => count($results),
+            'query' => $query,
+        ]);
 
         return $results;
     }
@@ -53,16 +88,34 @@ class TorrentSearchEngine
     protected function searchSite(Domain $site, string $query): array
     {
         try {
+            LogEngine::debug('torrent_search', '[TorrentSearchEngine] Getting scraper for site', [
+                'site_name' => $site->name,
+            ]);
+
             $scraper = $this->getScraperForSite($site);
 
             if (!$scraper) {
-                Log::warning("No scraper found for site: {$site->name}");
+                LogEngine::warning('torrent_search', '[TorrentSearchEngine] No scraper found for site', [
+                    'site_name' => $site->name,
+                    'site_url' => $site->url,
+                ]);
                 return [];
             }
 
+            LogEngine::debug('torrent_search', '[TorrentSearchEngine] Scraper instance created', [
+                'site_name' => $site->name,
+                'scraper_class' => get_class($scraper),
+            ]);
+
             return $scraper->search($query);
         } catch (Exception $e) {
-            Log::error("Error searching site {$site->name}: " . $e->getMessage());
+            LogEngine::error('torrent_search', '[TorrentSearchEngine] Error in searchSite', [
+                'site_name' => $site->name,
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+            ]);
             return [];
         }
     }
@@ -77,14 +130,33 @@ class TorrentSearchEngine
     {
         $scraperClass = $this->getScraperClassName($site->name);
 
+        LogEngine::debug('torrent_search', '[TorrentSearchEngine] Resolving scraper class', [
+            'site_name' => $site->name,
+            'scraper_class' => $scraperClass,
+        ]);
+
         if (!class_exists($scraperClass)) {
+            LogEngine::warning('torrent_search', '[TorrentSearchEngine] Scraper class not found', [
+                'site_name' => $site->name,
+                'expected_class' => $scraperClass,
+            ]);
             return null;
         }
 
         try {
-            return new $scraperClass($site);
+            $scraper = new $scraperClass($site);
+            LogEngine::debug('torrent_search', '[TorrentSearchEngine] Scraper instantiated successfully', [
+                'site_name' => $site->name,
+                'scraper_class' => $scraperClass,
+            ]);
+            return $scraper;
         } catch (Exception $e) {
-            Log::error("Error instantiating scraper {$scraperClass}: " . $e->getMessage());
+            LogEngine::error('torrent_search', '[TorrentSearchEngine] Error instantiating scraper', [
+                'site_name' => $site->name,
+                'scraper_class' => $scraperClass,
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString(),
+            ]);
             return null;
         }
     }
@@ -120,6 +192,13 @@ class TorrentSearchEngine
      */
     public static function fetchUrl(string $url, array $headers = []): ?string
     {
+        $startTime = microtime(true);
+
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Fetching URL', [
+            'url' => $url,
+            'headers_count' => count($headers),
+        ]);
+
         try {
             $defaultHeaders = [
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -127,17 +206,58 @@ class TorrentSearchEngine
                 'Accept-Language' => 'en-US,en;q=0.5',
             ];
 
-            $response = Http::withHeaders(array_merge($defaultHeaders, $headers))
-                ->timeout(10)
+            $finalHeaders = array_merge($defaultHeaders, $headers);
+
+            LogEngine::debug('torrent_search', '[TorrentSearchEngine] Making HTTP request', [
+                'url' => $url,
+                'timeout' => 30, // Increased timeout
+                'has_custom_headers' => !empty($headers),
+            ]);
+
+            $response = Http::withHeaders($finalHeaders)
+                ->timeout(30) // Increased from 10 to 30 seconds
                 ->get($url);
 
+            $duration = round((microtime(true) - $startTime) * 1000, 2);
+            $statusCode = $response->status();
+            $bodyLength = strlen($response->body());
+
+            LogEngine::info('torrent_search', '[TorrentSearchEngine] HTTP request completed', [
+                'url' => $url,
+                'status_code' => $statusCode,
+                'success' => $response->successful(),
+                'body_length' => $bodyLength,
+                'duration_ms' => $duration,
+            ]);
+
             if ($response->successful()) {
+                LogEngine::debug('torrent_search', '[TorrentSearchEngine] Response successful', [
+                    'url' => $url,
+                    'content_type' => $response->header('Content-Type'),
+                    'body_preview' => substr($response->body(), 0, 200) . '...',
+                ]);
                 return $response->body();
             }
 
+            LogEngine::warning('torrent_search', '[TorrentSearchEngine] HTTP request unsuccessful', [
+                'url' => $url,
+                'status_code' => $statusCode,
+                'response_body_preview' => substr($response->body(), 0, 500),
+            ]);
+
             return null;
         } catch (Exception $e) {
-            Log::error("Error fetching URL {$url}: " . $e->getMessage());
+            $duration = round((microtime(true) - $startTime) * 1000, 2);
+
+            LogEngine::error('torrent_search', '[TorrentSearchEngine] Error fetching URL', [
+                'url' => $url,
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'error_class' => get_class($e),
+                'duration_ms' => $duration,
+                'error_trace' => $e->getTraceAsString(),
+            ]);
+
             return null;
         }
     }

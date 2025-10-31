@@ -24,7 +24,7 @@ class TorrentSiteSeeder extends Seeder
             ],
             [
                 'name' => 'ThePirateBay',
-                'url' => 'https://thepiratebay.org',
+                'url' => 'https://1.piratebays.to',
                 'description' => 'The Pirate Bay - Most popular torrent site',
                 'type' => 'torrent',
                 'status' => 'active',

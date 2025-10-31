@@ -5,6 +5,7 @@ namespace App\Services\TorrentSearch\Scrapers;
 use App\Models\Domain;
 use App\Services\TorrentSearch\Contracts\TorrentScraperInterface;
 use App\Services\TorrentSearch\TorrentSearchEngine;
+use App\Services\LogEngine;
 
 abstract class BaseScraper implements TorrentScraperInterface
 {
@@ -51,14 +52,57 @@ abstract class BaseScraper implements TorrentScraperInterface
      */
     public function search(string $query): array
     {
+        $scraperName = $this->getName();
+        $startTime = microtime(true);
+
+        LogEngine::info('torrent_search', '[BaseScraper] Starting search', [
+            'scraper' => $scraperName,
+            'query' => $query,
+            'base_url' => $this->getBaseUrl(),
+        ]);
+
         $url = $this->buildSearchUrl($query);
+
+        LogEngine::info('torrent_search', '[BaseScraper] Built search URL', [
+            'scraper' => $scraperName,
+            'url' => $url,
+            'query' => $query,
+        ]);
+
         $html = TorrentSearchEngine::fetchUrl($url);
 
+        $fetchDuration = round((microtime(true) - $startTime) * 1000, 2);
+
         if (!$html) {
+            LogEngine::error('torrent_search', '[BaseScraper] No HTML returned', [
+                'scraper' => $scraperName,
+                'url' => $url,
+                'fetch_duration_ms' => $fetchDuration,
+            ]);
             return [];
         }
 
-        return $this->parseResult($html);
+        LogEngine::debug('torrent_search', '[BaseScraper] HTML received', [
+            'scraper' => $scraperName,
+            'html_length' => strlen($html),
+            'html_preview' => substr($html, 0, 300) . '...',
+            'fetch_duration_ms' => $fetchDuration,
+        ]);
+
+        $parseStartTime = microtime(true);
+        $results = $this->parseResult($html);
+        $parseDuration = round((microtime(true) - $parseStartTime) * 1000, 2);
+
+        LogEngine::info('torrent_search', '[BaseScraper] Search completed', [
+            'scraper' => $scraperName,
+            'query' => $query,
+            'results_count' => count($results),
+            'parse_duration_ms' => $parseDuration,
+            'total_duration_ms' => round((microtime(true) - $startTime) * 1000, 2),
+            'results_sample' => array_slice($results, 0, 3), // Log first 3 results as sample
+        ]);
+
+        return $results;
     }
 
     /**
@@ -85,4 +129,3 @@ abstract class BaseScraper implements TorrentScraperInterface
         return '';
     }
 }
-
