@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\File;
+use App\Models\ScannedUrl;
 use AdriCeci\AuditCenter\Models\AuditLog;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -117,6 +118,63 @@ class QuarantineService
         } catch (Exception $e) {
             Log::error("Failed to handle malicious file", [
                 'file_id' => $file->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Handle malicious URL: mark and log to audit
+     */
+    public function handleMaliciousUrl(ScannedUrl $scannedUrl, array $virusTotalResponse): void
+    {
+        try {
+            // Get URL information before updating
+            $urlInfo = [
+                'scanned_url_id' => $scannedUrl->id,
+                'url' => $scannedUrl->url,
+                'domain' => $scannedUrl->domain,
+                'virustotal_scan_id' => $scannedUrl->virustotal_scan_id,
+            ];
+
+            // Extract threat information from VirusTotal response
+            $threatInfo = $this->extractThreatInfo($virusTotalResponse);
+
+            // Update scanned URL status and mark as malicious
+            $scannedUrl->update([
+                'virustotal_status' => 'completed',
+                'virustotal_results' => $virusTotalResponse,
+                'virustotal_scanned_at' => now(),
+                'is_malicious' => true,
+                'blocked_at' => now(),
+            ]);
+
+            // Create audit log entry
+            AuditLog::log(
+                action: 'url_rejected_by_virustotal',
+                description: "URL '{$scannedUrl->url}' was flagged as malicious by VirusTotal. " . ($threatInfo['reason'] ?? 'Threats detected'),
+                userId: auth()->id(),
+                modelType: ScannedUrl::class,
+                modelId: $scannedUrl->id,
+                newValues: array_merge($urlInfo, [
+                    'virustotal_response' => $virusTotalResponse,
+                    'threats_detected' => $threatInfo['threats'] ?? [],
+                    'rejection_reason' => $threatInfo['reason'] ?? 'Malicious URL detected',
+                    'domain' => $scannedUrl->domain,
+                    'blocked_at' => now()->toIso8601String(),
+                ]),
+            );
+
+            Log::warning("Malicious URL marked and logged", [
+                'scanned_url_id' => $scannedUrl->id,
+                'url' => $scannedUrl->url,
+                'domain' => $scannedUrl->domain,
+                'threats' => $threatInfo['threats'] ?? [],
+            ]);
+        } catch (Exception $e) {
+            Log::error("Failed to handle malicious URL", [
+                'scanned_url_id' => $scannedUrl->id,
                 'error' => $e->getMessage(),
             ]);
             throw $e;

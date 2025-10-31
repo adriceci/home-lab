@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\File;
+use App\Models\ScannedUrl;
 use App\Services\VirusTotalService;
 use App\Services\QuarantineService;
 use Illuminate\Http\Request;
@@ -37,11 +38,39 @@ class VirusTotalController extends Controller
         }
 
         try {
-            $result = $this->virusTotalService->scanUrl($request->url);
+            $url = $request->url;
+            $domain = ScannedUrl::extractDomain($url);
+
+            // Check if URL already exists (not deleted)
+            $scannedUrl = ScannedUrl::where('url', $url)
+                ->whereNull('deleted_at')
+                ->first();
+
+            // Create or update scanned URL record
+            if (!$scannedUrl) {
+                $scannedUrl = ScannedUrl::create([
+                    'url' => $url,
+                    'domain' => $domain,
+                    'virustotal_scan_id' => null,
+                    'virustotal_status' => 'pending',
+                    'virustotal_results' => null,
+                    'is_malicious' => false,
+                ]);
+            }
+
+            // Scan URL with VirusTotal
+            $result = $this->virusTotalService->scanUrl($url);
+
+            // Update scanned URL record with scan ID
+            $scannedUrl->update([
+                'virustotal_scan_id' => $result['data']['id'] ?? null,
+                'virustotal_status' => 'scanning',
+            ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $result,
+                'scanned_url_id' => $scannedUrl->id,
                 'message' => 'URL scan initiated successfully'
             ]);
         } catch (Exception $e) {
@@ -60,10 +89,38 @@ class VirusTotalController extends Controller
         try {
             $result = $this->virusTotalService->getUrlReport($id);
 
+            // Update scanned URL record if it exists
+            $scannedUrl = ScannedUrl::where('virustotal_scan_id', $id)->first();
+            if ($scannedUrl) {
+                // Check if URL is malicious
+                $isMalicious = $this->isUrlMalicious($result);
+                
+                if ($isMalicious) {
+                    // Handle malicious URL: mark and log
+                    $this->quarantineService->handleMaliciousUrl($scannedUrl, $result);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'data' => $result,
+                        'message' => 'URL report retrieved successfully. URL was flagged as malicious.',
+                        'malicious' => true
+                    ]);
+                } else {
+                    // URL is safe
+                    $scannedUrl->update([
+                        'virustotal_status' => 'completed',
+                        'virustotal_results' => $result,
+                        'virustotal_scanned_at' => now(),
+                        'is_malicious' => false,
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $result,
-                'message' => 'URL report retrieved successfully'
+                'message' => 'URL report retrieved successfully',
+                'malicious' => false
             ]);
         } catch (Exception $e) {
             return response()->json([
@@ -272,6 +329,38 @@ class VirusTotalController extends Controller
             $stats = $virusTotalResponse['data']['attributes']['last_analysis_stats'];
             
             // If any security vendor flagged it as malicious or suspicious, reject it
+            if (isset($stats['malicious']) && $stats['malicious'] > 0) {
+                return true;
+            }
+            
+            // Optional: also reject if suspicious (you may want to adjust this policy)
+            if (isset($stats['suspicious']) && $stats['suspicious'] > 0) {
+                return true;
+            }
+        }
+
+        // Check reputation
+        if (isset($virusTotalResponse['data']['attributes']['reputation'])) {
+            $reputation = $virusTotalResponse['data']['attributes']['reputation'];
+            // Reputation < 0 typically means malicious
+            if ($reputation < 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if URL is malicious based on VirusTotal response
+     */
+    private function isUrlMalicious(array $virusTotalResponse): bool
+    {
+        // Check analysis stats
+        if (isset($virusTotalResponse['data']['attributes']['last_analysis_stats'])) {
+            $stats = $virusTotalResponse['data']['attributes']['last_analysis_stats'];
+            
+            // If any security vendor flagged it as malicious, reject it
             if (isset($stats['malicious']) && $stats['malicious'] > 0) {
                 return true;
             }
