@@ -24,6 +24,7 @@ class File extends Model
         'virustotal_scanned_at',
         'storage_disk',
         'quarantined_at',
+        'download_status',
     ];
 
     protected function casts(): array
@@ -40,6 +41,7 @@ class File extends Model
             'virustotal_scanned_at' => 'datetime',
             'storage_disk' => 'string',
             'quarantined_at' => 'datetime',
+            'download_status' => 'string',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',

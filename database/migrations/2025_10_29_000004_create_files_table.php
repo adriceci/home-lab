@@ -22,6 +22,23 @@ return new class extends Migration
             $table->string('mime_type')->nullable()->comment('MIME type of the file');
             $table->string('extension')->nullable()->comment('File extension');
 
+            // Download status
+            $table->enum('download_status', [
+                'pending',
+                'verifying_url',
+                'url_verified',
+                'url_rejected',
+                'downloading',
+                'download_completed',
+                'scanning_file',
+                'file_verified',
+                'file_rejected',
+                'moving_to_storage',
+                'completed',
+                'failed',
+                'cancelled',
+            ])->nullable()->after('type')->comment('Download process status');
+
             // VirusTotal fields
             $table->string('virustotal_scan_id')->nullable()->comment('VirusTotal scan ID');
             $table->enum('virustotal_status', ['pending', 'scanning', 'completed', 'error'])->nullable()->comment('VirusTotal scan status');
@@ -37,6 +54,7 @@ return new class extends Migration
             $table->index('virustotal_scan_id');
             $table->index('virustotal_status');
             $table->index('type');
+            $table->index('download_status');
         });
     }
 

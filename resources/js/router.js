@@ -3,6 +3,7 @@ import { useAuth } from "@/composables/useAuth";
 
 import Dashboard from "@/views/Dashboard.vue";
 import Analytics from "@/views/Analytics.vue";
+import Files from "@/views/Files.vue";
 import AuditLogs from "@/vendor/audit-center/components/AuditLogs.vue";
 import Login from "@/views/Login.vue";
 import NotFound from "@/views/system/NotFound.vue";
@@ -18,6 +19,11 @@ const appRoutes = [
         path: "/analytics",
         component: AppLayout,
         children: [{ path: "", name: "analytics", component: Analytics }],
+    },
+    {
+        path: "/files",
+        component: AppLayout,
+        children: [{ path: "", name: "files", component: Files }],
     },
     {
         path: "/audit-logs",

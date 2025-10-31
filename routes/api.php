@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\VirusTotalController;
 use App\Http\Controllers\TorrentSearchController;
 use App\Http\Controllers\DomainController;
@@ -42,6 +43,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('torrents')->group(function () {
         Route::post('/search', [TorrentSearchController::class, 'search']);
         Route::post('/download', [TorrentSearchController::class, 'download']);
+    });
+
+    // File routes
+    Route::prefix('files')->group(function () {
+        Route::get('/', [FileController::class, 'index']);
+        Route::get('/{fileId}/download-status', [FileController::class, 'downloadStatus']);
     });
 
     // Domain/Torrent Sites API routes

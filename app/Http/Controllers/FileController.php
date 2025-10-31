@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\File;
+use App\Services\DownloadStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class FileController extends Controller
 {
+    public function __construct(
+        private DownloadStatusService $statusService
+    ) {
+    }
     /**
      * Display a listing of files.
      * Files in quarantine are excluded by default for security reasons.
@@ -148,6 +153,26 @@ class FileController extends Controller
         $file->delete();
 
         return response()->json(['message' => 'File deleted successfully']);
+    }
+
+    /**
+     * Get download status for a file
+     */
+    public function downloadStatus(string $fileId)
+    {
+        $statusInfo = $this->statusService->getStatusInfoById($fileId);
+
+        if (!$statusInfo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $statusInfo,
+        ]);
     }
 }
 

@@ -43,6 +43,11 @@ export function useTorrentActions() {
             const response = await ApiService.post("/torrents/download", {
                 magnet_link: torrent.magnet_link,
                 torrent_link: torrent.torrent_link,
+                source_url: torrent.source_url,
+                title: torrent.title,
+                size: torrent.size,
+                seeders: torrent.seeders,
+                leechers: torrent.leechers,
             });
 
             if (response.success) {
@@ -50,11 +55,16 @@ export function useTorrentActions() {
                     response.message || "Torrent download started successfully";
                 showSuccess(successMessage);
                 if (onSuccess) {
-                    onSuccess({ torrent, message: response.message });
+                    onSuccess({ 
+                        torrent, 
+                        message: response.message,
+                        fileId: response.file_id, // Include file_id for status tracking
+                    });
                 }
                 return {
                     success: true,
                     message: response.message,
+                    fileId: response.file_id,
                     data: response,
                 };
             } else {
