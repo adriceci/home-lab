@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasPrefixedUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Repository extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -38,5 +38,15 @@ class Repository extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the prefix UUID for this model.
+     *
+     * @return string
+     */
+    public function getPrefixUuid(): string
+    {
+        return 'REP';
     }
 }

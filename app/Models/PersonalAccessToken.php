@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasPrefixedUuid;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
 
 class PersonalAccessToken extends SanctumPersonalAccessToken
 {
-    use HasUuids, SoftDeletes;
+    use HasPrefixedUuid, SoftDeletes;
 
     protected function casts(): array
     {
@@ -19,5 +19,15 @@ class PersonalAccessToken extends SanctumPersonalAccessToken
             'expires_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the prefix UUID for this model.
+     *
+     * @return string
+     */
+    public function getPrefixUuid(): string
+    {
+        return 'PAT';
     }
 }

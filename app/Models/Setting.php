@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasPrefixedUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Setting extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -42,5 +42,15 @@ class Setting extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the prefix UUID for this model.
+     *
+     * @return string
+     */
+    public function getPrefixUuid(): string
+    {
+        return 'SET';
     }
 }

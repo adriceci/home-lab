@@ -3,7 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasPrefixedUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -14,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasUuids, SoftDeletes;
+    use HasFactory, Notifiable, HasApiTokens, HasPrefixedUuid, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -60,5 +60,15 @@ class User extends Authenticatable
     public function settings(): HasMany
     {
         return $this->hasMany(Setting::class);
+    }
+
+    /**
+     * Get the prefix UUID for this model.
+     *
+     * @return string
+     */
+    public function getPrefixUuid(): string
+    {
+        return 'USR';
     }
 }

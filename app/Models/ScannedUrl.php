@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\HasPrefixedUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ScannedUrl extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
         'url',
@@ -89,6 +89,16 @@ class ScannedUrl extends Model
     public function scopeBlocked($query)
     {
         return $query->whereNotNull('blocked_at');
+    }
+
+    /**
+     * Get the prefix UUID for this model.
+     *
+     * @return string
+     */
+    public function getPrefixUuid(): string
+    {
+        return 'URL';
     }
 }
 
