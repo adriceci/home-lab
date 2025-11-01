@@ -109,22 +109,114 @@ class VerifyTorrentUrlJob implements ShouldQueue
                 return;
             }
 
-            // Initiate URL scan
-            $scanResult = $virusTotalService->scanUrl($this->url);
+            // Determine if we need to initiate a new scan or check existing one
+            $scanId = null;
+            $needsNewScan = false;
 
-            // Update scanned URL with scan ID
-            $scanId = $scanResult['data']['id'] ?? null;
-            $scannedUrl->update([
-                'virustotal_scan_id' => $scanId,
-                'virustotal_status' => 'scanning',
-            ]);
+            if ($scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id) {
+                // Scan already in progress, use existing scan_id
+                $scanId = $scannedUrl->virustotal_scan_id;
+                Log::info('Using existing scan ID', [
+                    'url' => $this->url,
+                    'scan_id' => $scanId,
+                    'scanned_url_id' => $scannedUrl->id,
+                ]);
+            } elseif ($scannedUrl->virustotal_status === 'pending' || !$scannedUrl->virustotal_scan_id) {
+                // Need to initiate a new scan
+                $needsNewScan = true;
+                Log::info('Initiating new URL scan', [
+                    'url' => $this->url,
+                    'scanned_url_id' => $scannedUrl->id,
+                ]);
+            } else {
+                // Unexpected status, treat as if we need a new scan
+                $needsNewScan = true;
+                Log::warning('Unexpected scan status, initiating new scan', [
+                    'url' => $this->url,
+                    'status' => $scannedUrl->virustotal_status,
+                    'scanned_url_id' => $scannedUrl->id,
+                ]);
+            }
+
+            // Initiate URL scan only if needed
+            if ($needsNewScan) {
+                $scanResult = $virusTotalService->scanUrl($this->url);
+                $scanId = $scanResult['data']['id'] ?? null;
+                
+                if (!$scanId) {
+                    throw new Exception('Failed to get scan ID from VirusTotal');
+                }
+
+                // Update scanned URL with scan ID
+                $scannedUrl->update([
+                    'virustotal_scan_id' => $scanId,
+                    'virustotal_status' => 'scanning',
+                ]);
+            }
 
             // Get URL report (may need to wait if scan is still processing)
-            // Note: VirusTotal scans may take time, so we might need to poll
-            // For now, we'll try to get the report immediately
-            // If it's still processing, we can implement polling in a separate job
             try {
                 $reportResult = $virusTotalService->getUrlReport($scanId);
+                
+                // Check if the report has complete analysis results
+                $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
+                
+                if (!$hasCompleteResults) {
+                    // Report not ready yet, check if we should retry or timeout
+                    $retryDelay = 30; // seconds
+                    $maxRetryAge = now()->subMinutes(10); // Don't retry if scan is older than 10 minutes
+                    $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
+                        ? $scannedUrl->updated_at
+                        : now();
+                    
+                    if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
+                        Log::warning('Scan taking too long, aborting verification', [
+                            'url' => $this->url,
+                            'scan_id' => $scanId,
+                            'scan_initiated_at' => $scanInitiatedAt,
+                        ]);
+                        
+                        if ($file) {
+                            $statusService->updateStatus($file, DownloadStatus::FAILED, 'URL verification timeout');
+                        }
+                        
+                        $scannedUrl->update([
+                            'virustotal_status' => 'timeout',
+                        ]);
+                        return;
+                    }
+
+                    // Refresh to get latest state before scheduling retry
+                    $scannedUrl->fresh();
+                    
+                    // Only schedule retry if status is still scanning (prevents duplicate retries)
+                    if ($scannedUrl->virustotal_status !== 'scanning') {
+                        Log::info('Scan status changed, not scheduling retry', [
+                            'url' => $this->url,
+                            'current_status' => $scannedUrl->virustotal_status,
+                        ]);
+                        return;
+                    }
+
+                    Log::info('URL report not ready yet, scheduling retry', [
+                        'url' => $this->url,
+                        'scan_id' => $scanId,
+                        'scanned_url_id' => $scannedUrl->id,
+                        'retry_delay' => $retryDelay,
+                    ]);
+
+                    // Schedule a single retry job with delay
+                    VerifyTorrentUrlJob::dispatch(
+                        $this->url,
+                        $this->magnetLink,
+                        $this->torrentLink,
+                        $this->fileId,
+                        $this->metadata
+                    )->delay(now()->addSeconds($retryDelay));
+                    return;
+                }
+
+                // Report is ready, process it
                 $isMalicious = $this->isUrlMalicious($reportResult);
 
                 // Update scanned URL with results
@@ -161,23 +253,56 @@ class VerifyTorrentUrlJob implements ShouldQueue
 
                 $this->proceedToDownload($statusService);
             } catch (Exception $e) {
-                // Report might not be ready yet, need to poll
-                // For now, we'll dispatch a delayed job to check again
-                // Or we can proceed if scan was just initiated (status might be 'queued')
-                Log::warning('Could not get URL report immediately, scan may still be processing', [
+                // Error getting report - could be API issue or report not ready
+                Log::warning('Error getting URL report, may need to retry', [
                     'url' => $this->url,
                     'scan_id' => $scanId,
                     'error' => $e->getMessage(),
                 ]);
 
-                // Dispatch a delayed job to check the report again in 30 seconds
-                VerifyTorrentUrlJob::dispatch(
-                    $this->url,
-                    $this->magnetLink,
-                    $this->torrentLink,
-                    $this->fileId,
-                    $this->metadata
-                )->delay(now()->addSeconds(30));
+                // Check if scan was just initiated (should allow some time)
+                $retryDelay = 30;
+                $maxRetryAge = now()->subMinutes(10);
+                $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
+                    ? $scannedUrl->updated_at
+                    : now();
+                
+                if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
+                    Log::error('Failed to get URL report after multiple attempts', [
+                        'url' => $this->url,
+                        'scan_id' => $scanId,
+                        'scan_initiated_at' => $scanInitiatedAt,
+                    ]);
+                    
+                    if ($file) {
+                        $statusService->updateStatus($file, DownloadStatus::FAILED, 'Failed to verify URL');
+                    }
+                    
+                    $scannedUrl->update([
+                        'virustotal_status' => 'error',
+                    ]);
+                    
+                    throw $e;
+                }
+
+                // Only schedule retry if status is still scanning (don't retry if it changed)
+                $scannedUrl->fresh();
+                if ($scannedUrl->virustotal_status === 'scanning') {
+                    // Schedule a retry only if scan is still recent
+                    VerifyTorrentUrlJob::dispatch(
+                        $this->url,
+                        $this->magnetLink,
+                        $this->torrentLink,
+                        $this->fileId,
+                        $this->metadata
+                    )->delay(now()->addSeconds($retryDelay));
+                } else {
+                    // Status changed (maybe completed by another job), don't retry
+                    Log::info('Scan status changed, not scheduling retry', [
+                        'url' => $this->url,
+                        'current_status' => $scannedUrl->virustotal_status,
+                    ]);
+                }
             }
         } catch (Exception $e) {
             Log::error('Failed to verify torrent URL', [
@@ -187,6 +312,39 @@ class VerifyTorrentUrlJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Check if VirusTotal report has complete analysis results
+     */
+    private function hasCompleteAnalysisResults(array $virusTotalResponse): bool
+    {
+        // Check if the response has the expected structure
+        if (!isset($virusTotalResponse['data']['attributes'])) {
+            return false;
+        }
+
+        $attributes = $virusTotalResponse['data']['attributes'];
+
+        // Check if we have analysis stats (indicates scan has been processed)
+        if (isset($attributes['last_analysis_stats'])) {
+            $stats = $attributes['last_analysis_stats'];
+            
+            // If we have stats with at least some results, consider it complete
+            $totalResults = ($stats['harmless'] ?? 0) + 
+                           ($stats['malicious'] ?? 0) + 
+                           ($stats['suspicious'] ?? 0) + 
+                           ($stats['undetected'] ?? 0);
+            
+            // Report is considered complete if we have at least some analysis results
+            // or if it has a reputation score (which indicates it was analyzed)
+            return $totalResults > 0 || isset($attributes['reputation']);
+        }
+
+        // If we have reputation or other analysis data, consider it complete
+        return isset($attributes['reputation']) || 
+               isset($attributes['last_analysis_date']) ||
+               isset($attributes['last_modification_date']);
     }
 
     /**
