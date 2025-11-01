@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exceptions\VirusTotalException;
 use App\Models\Domain;
+use App\Models\ScannedUrl;
 use App\Services\VirusTotalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -48,13 +49,21 @@ class UpdateDomainVirusTotalInfoJob implements ShouldQueue
                 'virustotal_status' => 'scanning',
             ]);
 
+            // Validate that domain has a URL
+            if (empty($domain->url)) {
+                throw new Exception("Domain '{$domain->name}' does not have a URL configured. Cannot analyze with VirusTotal.");
+            }
+
+            // Extract the actual domain from the URL (e.g., "1.piratebays.to" from "https://1.piratebays.to")
+            $domainName = ScannedUrl::extractDomain($domain->url);
+
             // Get domain information from VirusTotal
-            $domainInfo = $virusTotalService->getDomainInfo($domain->name);
+            $domainInfo = $virusTotalService->getDomainInfo($domainName);
             
             // Get votes separately
             $votesData = [];
             try {
-                $votesData = $virusTotalService->getDomainVotes($domain->name);
+                $votesData = $virusTotalService->getDomainVotes($domainName);
             } catch (Exception $e) {
                 // Votes endpoint might not be available or might fail, but we can continue with domain info
                 Log::warning('Failed to get domain votes, continuing with domain info only', [
@@ -132,6 +141,8 @@ class UpdateDomainVirusTotalInfoJob implements ShouldQueue
             Log::info('VirusTotal information updated successfully for domain', [
                 'domain_id' => $this->domainId,
                 'domain_name' => $domain->name,
+                'domain_url' => $domain->url,
+                'virustotal_domain' => $domainName,
                 'reputation' => $reputation,
                 'votes_harmless' => $votesHarmless,
                 'votes_malicious' => $votesMalicious,
