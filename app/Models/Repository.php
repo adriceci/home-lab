@@ -12,6 +12,7 @@ class Repository extends Model
     use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
+        'id',
         'name',
         'description',
         'status',

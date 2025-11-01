@@ -7,48 +7,39 @@ use Illuminate\Support\Str;
 
 trait HasPrefixedUuid
 {
-    protected static function bootHasPrefixedUuid()
+    /**
+     * Boot the trait.
+     * Laravel automatically calls boot{TraitName} methods when a trait is used.
+     * This MUST be public static for Laravel to call it.
+     */
+    public static function bootHasPrefixedUuid(): void
     {
-        static::creating(function (Model $model) {
+        static::creating(function (Model $model): void {
             $keyName = $model->getKeyName();
-            $currentId = $model->{$keyName};
-            $prefix = strtoupper(static::getUuidPrefix());
+            
+            // Check if ID is not set using multiple methods to be safe
+            $currentId = $model->getAttribute($keyName) ?? $model->{$keyName} ?? null;
 
-            // Only generate a new UUID if:
-            // 1. No ID is set, OR
-            // 2. ID is set but doesn't have the correct prefix
-            if (empty($currentId) || !static::hasCorrectPrefix($currentId, $prefix)) {
-                $newId = static::generatePrefixedUuid($prefix);
-                $model->{$keyName} = $newId;
+            // Generate UUID if not set, null, or empty string
+            if (empty($currentId)) {
+                $uuid = static::generatePrefixedUuid();
+                $model->setAttribute($keyName, $uuid);
+                $model->{$keyName} = $uuid;
             }
         });
     }
 
-    protected static function hasCorrectPrefix(string $id, string $prefix): bool
+    protected static function hasCorrectPrefix(string $id): bool
     {
+        $prefix = static::getUuidPrefix();
         return str_starts_with($id, $prefix . '-');
     }
 
-    public static function generatePrefixedUuid(?string $prefix = null): string
+    public static function generatePrefixedUuid(): string
     {
-        if ($prefix === null) {
-            $prefix = strtoupper(static::getUuidPrefix());
-        }
-
-        // Validate prefix length
-        $prefixLength = strlen($prefix);
-        if ($prefixLength < 3 || $prefixLength > 4) {
-            throw new \InvalidArgumentException(
-                "Prefix UUID must be between 3 and 4 characters. Got: '{$prefix}' ({$prefixLength} chars)"
-            );
-        }
-
-        // Generate standard UUID
+        $prefix = static::getUuidPrefix();
         $uuid = (string) Str::uuid();
-
-        // Return format: PREFIX-UUID_COMPLETO
-        // Example: ACC-0001-041f-487a-a626-5ce20f0d88e2
-        return $prefix . '-' . substr($uuid, $prefixLength + 1);
+        return $prefix . '-' . substr($uuid, strlen($prefix) + 1);
     }
 
     public function initializeHasPrefixedUuid()
@@ -73,9 +64,5 @@ trait HasPrefixedUuid
         return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
     }
 
-    /**
-     * Get the prefix UUID for this model.
-     * Must return a string of 3-4 characters.
-     */
     abstract protected static function getUuidPrefix(): string;
 }

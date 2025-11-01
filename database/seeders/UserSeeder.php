@@ -14,6 +14,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         User::create([
+            'id' => User::generatePrefixedUuid(), // Generate UUID manually since WithoutModelEvents disables model events
             'name' => 'Adrian Cecilia Ogalla',
             'email' => 'adrian.cecilia4@gmail.com',
             'password' => Hash::make(config('app.admin_password')),

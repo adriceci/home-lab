@@ -13,6 +13,7 @@ class Setting extends Model
     use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
+        'id',
         'user_id',
         'key',
         'value',

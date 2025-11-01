@@ -40,7 +40,7 @@ class TorrentSiteSeeder extends Seeder
                 ->first();
 
             if (!$existing) {
-                Domain::create($site);
+                Domain::create(array_merge($site, ['id' => Domain::generatePrefixedUuid()])); // Generate UUID manually since WithoutModelEvents disables model events
             } else {
                 // Update existing site
                 $existing->update($site);

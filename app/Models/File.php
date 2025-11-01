@@ -12,6 +12,7 @@ class File extends Model
     use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
+        'id',
         'name',
         'path',
         'size',

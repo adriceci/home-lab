@@ -12,6 +12,7 @@ class ScannedUrl extends Model
     use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
+        'id',
         'url',
         'domain',
         'virustotal_scan_id',

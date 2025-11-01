@@ -13,6 +13,7 @@ class Statistic extends Model
     use HasFactory, HasPrefixedUuid, SoftDeletes;
 
     protected $fillable = [
+        'id',
         'model_type',
         'model_id',
         'metric',
