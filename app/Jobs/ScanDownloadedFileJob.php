@@ -163,15 +163,16 @@ class ScanDownloadedFileJob implements ShouldQueue
                 }
             }
 
-            // Get file report (may need to wait if scan is still processing)
+            // Check analysis status first, then get full report using file hash
             try {
-                $reportResult = $virusTotalService->getFileReport($scanId);
+                // Get analysis status using the Analysis ID
+                $analysisResult = $virusTotalService->getAnalysis($scanId);
                 
-                // Check if the report has complete analysis results
-                $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
+                // Check if analysis is complete
+                $analysisStatus = $analysisResult['data']['attributes']['status'] ?? null;
                 
-                if (!$hasCompleteResults) {
-                    // Report not ready yet, check if we should retry or timeout
+                if ($analysisStatus !== 'completed') {
+                    // Analysis not ready yet, check if we should retry or timeout
                     $retryDelay = 30; // seconds
                     $maxRetryAge = now()->subMinutes(10); // Don't retry if scan is older than 10 minutes
                     $scanInitiatedAt = $file->virustotal_status === 'scanning' && $file->virustotal_scan_id
@@ -179,9 +180,10 @@ class ScanDownloadedFileJob implements ShouldQueue
                         : now();
                     
                     if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
-                        Log::warning('Scan taking too long, aborting verification', [
+                        Log::warning('Analysis taking too long, aborting verification', [
                             'file_id' => $file->id,
-                            'scan_id' => $scanId,
+                            'analysis_id' => $scanId,
+                            'status' => $analysisStatus,
                             'scan_initiated_at' => $scanInitiatedAt,
                         ]);
                         
@@ -205,15 +207,57 @@ class ScanDownloadedFileJob implements ShouldQueue
                         return;
                     }
 
-                    Log::info('File report not ready yet, scheduling retry', [
+                    Log::info('Analysis not ready yet, scheduling retry', [
                         'file_id' => $file->id,
-                        'scan_id' => $scanId,
+                        'analysis_id' => $scanId,
+                        'status' => $analysisStatus,
                         'retry_delay' => $retryDelay,
                     ]);
 
                     // Schedule a single retry job with delay
                     ScanDownloadedFileJob::dispatch($this->fileId)
                         ->delay(now()->addSeconds($retryDelay));
+                    return;
+                }
+                
+                // Analysis is complete, get the file hash to retrieve full report
+                // Extract hash from analysis response if available, otherwise calculate it
+                $fileHash = null;
+                
+                // Try to get hash from analysis metadata
+                if (isset($analysisResult['data']['attributes']['meta']['file_info']['sha256'])) {
+                    $fileHash = $analysisResult['data']['attributes']['meta']['file_info']['sha256'];
+                } else {
+                    // Calculate SHA-256 hash of the file locally
+                    $fileContent = Storage::disk('quarantine')->get($file->path);
+                    $fileHash = hash('sha256', $fileContent);
+                    Log::info('Calculated file hash locally', [
+                        'file_id' => $file->id,
+                        'hash' => $fileHash,
+                    ]);
+                }
+                
+                if (!$fileHash) {
+                    throw new Exception('Failed to determine file hash for report retrieval');
+                }
+                
+                // Get full file report using the hash
+                $reportResult = $virusTotalService->getFileReport($fileHash);
+                
+                // Check if the report has complete analysis results
+                $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
+                
+                if (!$hasCompleteResults) {
+                    // This shouldn't happen if analysis is completed, but handle it just in case
+                    Log::warning('Analysis completed but report incomplete, retrying', [
+                        'file_id' => $file->id,
+                        'analysis_id' => $scanId,
+                        'file_hash' => $fileHash,
+                    ]);
+                    
+                    // Retry after a delay
+                    ScanDownloadedFileJob::dispatch($this->fileId)
+                        ->delay(now()->addSeconds(30));
                     return;
                 }
 
@@ -250,10 +294,10 @@ class ScanDownloadedFileJob implements ShouldQueue
                 MoveFileToStorageJob::dispatch($file->id);
 
             } catch (Exception $e) {
-                // Error getting report - could be API issue or report not ready
-                Log::warning('Error getting file report, may need to retry', [
+                // Error getting analysis or report - could be API issue or analysis not ready
+                Log::warning('Error getting analysis or file report, may need to retry', [
                     'file_id' => $file->id,
-                    'scan_id' => $scanId,
+                    'analysis_id' => $scanId,
                     'error' => $e->getMessage(),
                 ]);
 
@@ -265,9 +309,9 @@ class ScanDownloadedFileJob implements ShouldQueue
                     : now();
                 
                 if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
-                    Log::error('Failed to get file report after multiple attempts', [
+                    Log::error('Failed to get analysis or file report after multiple attempts', [
                         'file_id' => $file->id,
-                        'scan_id' => $scanId,
+                        'analysis_id' => $scanId,
                         'scan_initiated_at' => $scanInitiatedAt,
                     ]);
                     

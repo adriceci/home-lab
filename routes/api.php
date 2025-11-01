@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('virustotal')->group(function () {
         // URL scanning
         Route::post('/scan-url', [VirusTotalController::class, 'scanUrl']);
+        Route::get('/analysis/{id}', [VirusTotalController::class, 'getAnalysis']);
         Route::get('/url-report/{id}', [VirusTotalController::class, 'getUrlReport']);
 
         // File scanning

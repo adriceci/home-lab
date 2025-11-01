@@ -82,15 +82,51 @@ class VirusTotalController extends Controller
     }
 
     /**
-     * Get URL analysis report
+     * Get analysis status by Analysis ID
+     */
+    public function getAnalysis(string $id): JsonResponse
+    {
+        try {
+            $result = $this->virusTotalService->getAnalysis($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Analysis status retrieved successfully'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get analysis: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get URL analysis report by URL ID (base64 encoded URL)
+     * Note: This endpoint expects a URL ID (base64 encoded), not an Analysis ID
      */
     public function getUrlReport(string $id): JsonResponse
     {
         try {
             $result = $this->virusTotalService->getUrlReport($id);
 
-            // Update scanned URL record if it exists
-            $scannedUrl = ScannedUrl::where('virustotal_scan_id', $id)->first();
+            // Try to find scanned URL record by URL ID or by trying to decode it
+            // Since URL ID is base64 encoded URL, we need to decode it to find the record
+            $scannedUrl = null;
+            try {
+                // Try to decode the URL ID to find the original URL
+                $decodedUrl = base64_decode(strtr($id, '-_', '+/'), true);
+                if ($decodedUrl !== false) {
+                    $scannedUrl = ScannedUrl::where('url', $decodedUrl)
+                        ->whereNull('deleted_at')
+                        ->first();
+                }
+            } catch (Exception $e) {
+                // If decoding fails, try searching by scan_id (in case someone passes Analysis ID)
+                $scannedUrl = ScannedUrl::where('virustotal_scan_id', $id)->first();
+            }
+
             if ($scannedUrl) {
                 // Check if URL is malicious
                 $isMalicious = $this->isUrlMalicious($result);
@@ -268,15 +304,44 @@ class VirusTotalController extends Controller
     }
 
     /**
-     * Get file analysis report
+     * Get file analysis report by file hash (SHA-256, MD5, or SHA-1)
+     * Note: This endpoint expects a file hash, not an Analysis ID
      */
     public function getFileReport(string $id): JsonResponse
     {
         try {
             $result = $this->virusTotalService->getFileReport($id);
 
-            // Update file record if it exists
-            $fileRecord = File::where('virustotal_scan_id', $id)->first();
+            // Try to find file record by hash
+            // Check if the ID is a valid hash (SHA-256, MD5, or SHA-1) and try to match
+            // Since we store files, we can try to match by checking stored hash if available
+            // For now, we'll try to find by scan_id as fallback (in case someone passes Analysis ID)
+            $fileRecord = null;
+            
+            // If the ID looks like a hash (hexadecimal, 32/40/64 chars), try to find file
+            // Otherwise, assume it might be an Analysis ID and search by that
+            if (preg_match('/^[a-f0-9]{32,64}$/i', $id)) {
+                // It's a hash, try to find file by checking stored results
+                // Since we don't store hash separately, we'll check in virustotal_results
+                // For now, we'll search by scan_id as fallback
+                $fileRecord = File::where('virustotal_scan_id', $id)->first();
+                
+                // If not found, search all files and check their virustotal_results for matching hash
+                if (!$fileRecord) {
+                    $files = File::whereNotNull('virustotal_results')->get();
+                    foreach ($files as $file) {
+                        if (isset($file->virustotal_results['data']['id']) && 
+                            $file->virustotal_results['data']['id'] === $id) {
+                            $fileRecord = $file;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Might be an Analysis ID, search by scan_id
+                $fileRecord = File::where('virustotal_scan_id', $id)->first();
+            }
+
             if ($fileRecord) {
                 // Check if file is malicious
                 $isMalicious = $this->isFileMalicious($result);

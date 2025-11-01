@@ -154,15 +154,16 @@ class VerifyTorrentUrlJob implements ShouldQueue
                 ]);
             }
 
-            // Get URL report (may need to wait if scan is still processing)
+            // Check analysis status first, then get full report using URL ID
             try {
-                $reportResult = $virusTotalService->getUrlReport($scanId);
+                // Get analysis status using the Analysis ID
+                $analysisResult = $virusTotalService->getAnalysis($scanId);
                 
-                // Check if the report has complete analysis results
-                $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
+                // Check if analysis is complete
+                $analysisStatus = $analysisResult['data']['attributes']['status'] ?? null;
                 
-                if (!$hasCompleteResults) {
-                    // Report not ready yet, check if we should retry or timeout
+                if ($analysisStatus !== 'completed') {
+                    // Analysis not ready yet, check if we should retry or timeout
                     $retryDelay = 30; // seconds
                     $maxRetryAge = now()->subMinutes(10); // Don't retry if scan is older than 10 minutes
                     $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
@@ -170,9 +171,10 @@ class VerifyTorrentUrlJob implements ShouldQueue
                         : now();
                     
                     if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
-                        Log::warning('Scan taking too long, aborting verification', [
+                        Log::warning('Analysis taking too long, aborting verification', [
                             'url' => $this->url,
-                            'scan_id' => $scanId,
+                            'analysis_id' => $scanId,
+                            'status' => $analysisStatus,
                             'scan_initiated_at' => $scanInitiatedAt,
                         ]);
                         
@@ -198,9 +200,10 @@ class VerifyTorrentUrlJob implements ShouldQueue
                         return;
                     }
 
-                    Log::info('URL report not ready yet, scheduling retry', [
+                    Log::info('Analysis not ready yet, scheduling retry', [
                         'url' => $this->url,
-                        'scan_id' => $scanId,
+                        'analysis_id' => $scanId,
+                        'status' => $analysisStatus,
                         'scanned_url_id' => $scannedUrl->id,
                         'retry_delay' => $retryDelay,
                     ]);
@@ -213,6 +216,34 @@ class VerifyTorrentUrlJob implements ShouldQueue
                         $this->fileId,
                         $this->metadata
                     )->delay(now()->addSeconds($retryDelay));
+                    return;
+                }
+                
+                // Analysis is complete, get the URL ID (base64 encoded) to retrieve full report
+                $urlId = $virusTotalService->encodeUrlId($this->url);
+                
+                // Get full URL report using the URL ID
+                $reportResult = $virusTotalService->getUrlReport($urlId);
+                
+                // Check if the report has complete analysis results
+                $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
+                
+                if (!$hasCompleteResults) {
+                    // This shouldn't happen if analysis is completed, but handle it just in case
+                    Log::warning('Analysis completed but report incomplete, retrying', [
+                        'url' => $this->url,
+                        'analysis_id' => $scanId,
+                        'url_id' => $urlId,
+                    ]);
+                    
+                    // Retry after a delay
+                    VerifyTorrentUrlJob::dispatch(
+                        $this->url,
+                        $this->magnetLink,
+                        $this->torrentLink,
+                        $this->fileId,
+                        $this->metadata
+                    )->delay(now()->addSeconds(30));
                     return;
                 }
 
@@ -253,10 +284,10 @@ class VerifyTorrentUrlJob implements ShouldQueue
 
                 $this->proceedToDownload($statusService);
             } catch (Exception $e) {
-                // Error getting report - could be API issue or report not ready
-                Log::warning('Error getting URL report, may need to retry', [
+                // Error getting analysis or report - could be API issue or analysis not ready
+                Log::warning('Error getting analysis or URL report, may need to retry', [
                     'url' => $this->url,
-                    'scan_id' => $scanId,
+                    'analysis_id' => $scanId,
                     'error' => $e->getMessage(),
                 ]);
 
@@ -268,9 +299,9 @@ class VerifyTorrentUrlJob implements ShouldQueue
                     : now();
                 
                 if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
-                    Log::error('Failed to get URL report after multiple attempts', [
+                    Log::error('Failed to get analysis or URL report after multiple attempts', [
                         'url' => $this->url,
-                        'scan_id' => $scanId,
+                        'analysis_id' => $scanId,
                         'scan_initiated_at' => $scanInitiatedAt,
                     ]);
                     

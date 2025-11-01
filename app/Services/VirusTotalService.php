@@ -48,7 +48,28 @@ class VirusTotalService
     }
 
     /**
-     * Get URL analysis report
+     * Get analysis status by analysis ID
+     * This method retrieves the status of an analysis using the Analysis ID returned from scanUrl or scanFile
+     */
+    public function getAnalysis(string $analysisId): array
+    {
+        $this->logRequest('get_analysis', "Getting analysis status for ID: {$analysisId}");
+
+        $response = $this->makeRequest('GET', "/analyses/{$analysisId}");
+
+        if ($response->successful()) {
+            $data = $response->json();
+            $this->logRequest('get_analysis_success', "Analysis status retrieved successfully for ID: {$analysisId}");
+            return $data;
+        }
+
+        throw new Exception('Failed to get analysis: ' . $response->body());
+    }
+
+    /**
+     * Get URL analysis report by URL ID (base64 encoded URL)
+     * Use this after the analysis is completed to get the full report
+     * @param string $urlId The base64 encoded URL ID (not the Analysis ID)
      */
     public function getUrlReport(string $urlId): array
     {
@@ -63,6 +84,15 @@ class VirusTotalService
         }
 
         throw new Exception('Failed to get URL report: ' . $response->body());
+    }
+
+    /**
+     * Encode URL to base64 URL ID format required by VirusTotal API
+     */
+    public function encodeUrlId(string $url): string
+    {
+        // VirusTotal uses base64url encoding (RFC 4648) without padding
+        return rtrim(strtr(base64_encode($url), '+/', '-_'), '=');
     }
 
     /**
@@ -162,17 +192,19 @@ class VirusTotalService
     }
 
     /**
-     * Get file analysis report
+     * Get file analysis report by file hash (SHA-256, MD5, or SHA-1)
+     * Use this after the analysis is completed to get the full report
+     * @param string $fileHash The file hash (SHA-256, MD5, or SHA-1), not the Analysis ID
      */
-    public function getFileReport(string $fileId): array
+    public function getFileReport(string $fileHash): array
     {
-        $this->logRequest('get_file_report', "Getting file report for ID: {$fileId}");
+        $this->logRequest('get_file_report', "Getting file report for hash: {$fileHash}");
 
-        $response = $this->makeRequest('GET', "/files/{$fileId}");
+        $response = $this->makeRequest('GET', "/files/{$fileHash}");
 
         if ($response->successful()) {
             $data = $response->json();
-            $this->logRequest('get_file_report_success', "File report retrieved successfully for ID: {$fileId}");
+            $this->logRequest('get_file_report_success', "File report retrieved successfully for hash: {$fileHash}");
             return $data;
         }
 
