@@ -40,7 +40,22 @@ return new class extends Migration
 
             // VirusTotal fields
             $table->string('virustotal_scan_id')->nullable()->comment('VirusTotal scan ID');
-            $table->enum('virustotal_status', ['pending', 'scanning', 'completed', 'error'])->nullable()->comment('VirusTotal scan status');
+            $table->enum('virustotal_status', [
+                'pending',
+                'scanning',
+                'completed',
+                'error',
+                'quota_exceeded',
+                'authentication_error',
+                'not_found',
+                'forbidden',
+                'timeout',
+                'transient_error',
+                'dependency_error',
+                'already_exists',
+                'bad_request',
+                'not_available',
+            ])->nullable()->comment('VirusTotal scan status');
             $table->json('virustotal_results')->nullable()->comment('VirusTotal scan results');
             $table->timestamp('virustotal_scanned_at')->nullable()->comment('When the file was scanned');
 

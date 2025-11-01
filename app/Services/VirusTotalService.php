@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Exceptions\VirusTotalException;
 use App\Models\File;
+use App\Services\VirusTotal\VirusTotalErrorCodes;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -44,7 +46,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to scan URL: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to scan URL');
     }
 
     /**
@@ -63,7 +65,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get analysis: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get analysis');
     }
 
     /**
@@ -83,7 +85,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get URL report: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get URL report');
     }
 
     /**
@@ -130,7 +132,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to scan file: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to scan file');
     }
 
     /**
@@ -148,7 +150,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get large file upload URL: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get large file upload URL');
     }
 
     /**
@@ -188,7 +190,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to upload large file: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to upload large file');
     }
 
     /**
@@ -208,7 +210,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get file report: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get file report');
     }
 
     /**
@@ -226,7 +228,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get domain info: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get domain info');
     }
 
     /**
@@ -244,7 +246,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get IP info: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get IP info');
     }
 
     /**
@@ -262,7 +264,7 @@ class VirusTotalService
             return $data;
         }
 
-        throw new Exception('Failed to get file analysis: ' . $response->body());
+        throw $this->parseErrorResponse($response, 'Failed to get file analysis');
     }
 
     /**
@@ -298,29 +300,69 @@ class VirusTotalService
                     default => throw new Exception("Unsupported HTTP method: {$method}")
                 };
 
-                // Check for rate limiting
-                if ($response->status() === 429) {
+                // Check for rate limiting (429)
+                if ($response->status() === VirusTotalErrorCodes::HTTP_TOO_MANY_REQUESTS) {
                     $retryAfter = $response->header('Retry-After') ?? 60;
                     $this->logRequest('rate_limit', "Rate limited. Waiting {$retryAfter} seconds before retry.");
-                    sleep($retryAfter);
-                    $attempt++;
-                    continue;
+                    
+                    // Try to parse error for better logging
+                    try {
+                        $error = $this->parseErrorResponse($response, 'Rate limited');
+                        if ($error->isRetryable()) {
+                            sleep($retryAfter);
+                            $attempt++;
+                            continue;
+                        }
+                    } catch (Exception $e) {
+                        // If parsing fails, use default behavior
+                        sleep($retryAfter);
+                        $attempt++;
+                        continue;
+                    }
                 }
 
-                // If successful or client error (4xx), return response
-                if ($response->successful() || $response->clientError()) {
+                // If successful, return response
+                if ($response->successful()) {
                     return $response;
+                }
+
+                // Handle client errors (4xx) - parse and throw appropriate exception
+                if ($response->clientError()) {
+                    // For some client errors, we might want to retry (e.g., NotAvailableYet)
+                    $parsedError = $this->parseErrorResponse($response, 'Client error');
+                    if ($parsedError->isRetryable() && $attempt < $this->maxRetries - 1) {
+                        $attempt++;
+                        $delay = $this->retryDelay * $attempt;
+                        $this->logRequest('retry', "Retryable client error. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries})");
+                        usleep($delay * 1000);
+                        continue;
+                    }
+                    // For non-retryable client errors, throw immediately
+                    throw $parsedError;
                 }
 
                 // Server error (5xx), retry
                 if ($response->serverError()) {
+                    $parsedError = $this->parseErrorResponse($response, 'Server error');
                     $attempt++;
-                    if ($attempt < $this->maxRetries) {
+                    if ($attempt < $this->maxRetries && $parsedError->isRetryable()) {
                         $delay = $this->retryDelay * $attempt;
                         $this->logRequest('retry', "Server error. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries})");
                         usleep($delay * 1000);
+                        continue;
                     }
+                    // Max retries exceeded or not retryable, throw error
+                    throw $parsedError;
                 }
+            } catch (VirusTotalException $e) {
+                // VirusTotal-specific exceptions should be rethrown immediately if not retryable
+                if (!$e->isRetryable() || $attempt >= $this->maxRetries - 1) {
+                    throw $e;
+                }
+                $attempt++;
+                $delay = $this->retryDelay * $attempt;
+                $this->logRequest('retry', "VirusTotal error (retryable). Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries}): " . $e->getMessage());
+                usleep($delay * 1000);
             } catch (Exception $e) {
                 $attempt++;
                 if ($attempt >= $this->maxRetries) {
@@ -367,29 +409,69 @@ class VirusTotalService
                     default => throw new Exception("Unsupported HTTP method: {$method}")
                 };
 
-                // Check for rate limiting
-                if ($response->status() === 429) {
+                // Check for rate limiting (429)
+                if ($response->status() === VirusTotalErrorCodes::HTTP_TOO_MANY_REQUESTS) {
                     $retryAfter = $response->header('Retry-After') ?? 60;
                     $this->logRequest('rate_limit', "Rate limited. Waiting {$retryAfter} seconds before retry.");
-                    sleep($retryAfter);
-                    $attempt++;
-                    continue;
+                    
+                    // Try to parse error for better logging
+                    try {
+                        $error = $this->parseErrorResponse($response, 'Rate limited');
+                        if ($error->isRetryable()) {
+                            sleep($retryAfter);
+                            $attempt++;
+                            continue;
+                        }
+                    } catch (Exception $e) {
+                        // If parsing fails, use default behavior
+                        sleep($retryAfter);
+                        $attempt++;
+                        continue;
+                    }
                 }
 
-                // If successful or client error (4xx), return response
-                if ($response->successful() || $response->clientError()) {
+                // If successful, return response
+                if ($response->successful()) {
                     return $response;
+                }
+
+                // Handle client errors (4xx) - parse and throw appropriate exception
+                if ($response->clientError()) {
+                    // For some client errors, we might want to retry (e.g., NotAvailableYet)
+                    $parsedError = $this->parseErrorResponse($response, 'Client error');
+                    if ($parsedError->isRetryable() && $attempt < $this->maxRetries - 1) {
+                        $attempt++;
+                        $delay = $this->retryDelay * $attempt;
+                        $this->logRequest('retry', "Retryable client error. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries})");
+                        usleep($delay * 1000);
+                        continue;
+                    }
+                    // For non-retryable client errors, throw immediately
+                    throw $parsedError;
                 }
 
                 // Server error (5xx), retry
                 if ($response->serverError()) {
+                    $parsedError = $this->parseErrorResponse($response, 'Server error');
                     $attempt++;
-                    if ($attempt < $this->maxRetries) {
+                    if ($attempt < $this->maxRetries && $parsedError->isRetryable()) {
                         $delay = $this->retryDelay * $attempt;
                         $this->logRequest('retry', "Server error. Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries})");
                         usleep($delay * 1000);
+                        continue;
                     }
+                    // Max retries exceeded or not retryable, throw error
+                    throw $parsedError;
                 }
+            } catch (VirusTotalException $e) {
+                // VirusTotal-specific exceptions should be rethrown immediately if not retryable
+                if (!$e->isRetryable() || $attempt >= $this->maxRetries - 1) {
+                    throw $e;
+                }
+                $attempt++;
+                $delay = $this->retryDelay * $attempt;
+                $this->logRequest('retry', "VirusTotal error (retryable). Retrying in {$delay}ms (attempt {$attempt}/{$this->maxRetries}): " . $e->getMessage());
+                usleep($delay * 1000);
             } catch (Exception $e) {
                 $attempt++;
                 if ($attempt >= $this->maxRetries) {
@@ -404,6 +486,94 @@ class VirusTotalService
         }
 
         throw new Exception("Max retries exceeded for {$method} {$endpoint}");
+    }
+
+    /**
+     * Parse VirusTotal API error response and create appropriate exception
+     * 
+     * @param Response $response
+     * @param string $defaultMessage
+     * @return VirusTotalException
+     */
+    private function parseErrorResponse(Response $response, string $defaultMessage = 'VirusTotal API error'): VirusTotalException
+    {
+        $httpCode = $response->status();
+        $errorCode = '';
+        $errorMessage = $defaultMessage;
+        $errorData = null;
+
+        try {
+            $jsonData = $response->json();
+            $errorData = $jsonData;
+
+            // VirusTotal error format: {"error": {"code": "ErrorCode", "message": "Error message"}}
+            if (isset($jsonData['error'])) {
+                $error = $jsonData['error'];
+                $errorCode = $error['code'] ?? '';
+                $errorMessage = $error['message'] ?? $defaultMessage;
+            } elseif (isset($jsonData['code'])) {
+                // Alternative format where error code is at root level
+                $errorCode = $jsonData['code'];
+                $errorMessage = $jsonData['message'] ?? $defaultMessage;
+            }
+        } catch (Exception $e) {
+            // If JSON parsing fails, try to get error from response body
+            $body = $response->body();
+            if (!empty($body)) {
+                $errorMessage = $body;
+            }
+        }
+
+        // If we couldn't determine the error code, try to infer from HTTP status
+        if (empty($errorCode) && $httpCode > 0) {
+            $errorCode = $this->inferErrorCodeFromHttpStatus($httpCode);
+        }
+
+        // Get description for the error code
+        $description = VirusTotalErrorCodes::getErrorDescription($errorCode);
+        if (!empty($description) && $errorMessage === $defaultMessage) {
+            $errorMessage = $description;
+        }
+
+        return new VirusTotalException(
+            $errorMessage,
+            $httpCode,
+            $errorCode,
+            $errorData
+        );
+    }
+
+    /**
+     * Infer error code from HTTP status code when not provided in response
+     * 
+     * @param int $httpCode
+     * @return string
+     */
+    private function inferErrorCodeFromHttpStatus(int $httpCode): string
+    {
+        return match ($httpCode) {
+            VirusTotalErrorCodes::HTTP_BAD_REQUEST => VirusTotalErrorCodes::ERROR_BAD_REQUEST,
+            VirusTotalErrorCodes::HTTP_UNAUTHORIZED => VirusTotalErrorCodes::ERROR_AUTHENTICATION_REQUIRED,
+            VirusTotalErrorCodes::HTTP_FORBIDDEN => VirusTotalErrorCodes::ERROR_FORBIDDEN,
+            VirusTotalErrorCodes::HTTP_NOT_FOUND => VirusTotalErrorCodes::ERROR_NOT_FOUND,
+            VirusTotalErrorCodes::HTTP_CONFLICT => VirusTotalErrorCodes::ERROR_ALREADY_EXISTS,
+            VirusTotalErrorCodes::HTTP_FAILED_DEPENDENCY => VirusTotalErrorCodes::ERROR_FAILED_DEPENDENCY,
+            VirusTotalErrorCodes::HTTP_TOO_MANY_REQUESTS => VirusTotalErrorCodes::ERROR_TOO_MANY_REQUESTS,
+            VirusTotalErrorCodes::HTTP_SERVICE_UNAVAILABLE => VirusTotalErrorCodes::ERROR_TRANSIENT,
+            VirusTotalErrorCodes::HTTP_GATEWAY_TIMEOUT => VirusTotalErrorCodes::ERROR_DEADLINE_EXCEEDED,
+            default => '',
+        };
+    }
+
+    /**
+     * Get status value for database based on VirusTotal error
+     * 
+     * @param VirusTotalException $exception
+     * @return string
+     */
+    public function getStatusFromError(VirusTotalException $exception): string
+    {
+        return VirusTotalErrorCodes::errorCodeToStatus($exception->getErrorCode());
     }
 
     /**
