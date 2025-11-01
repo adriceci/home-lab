@@ -12,7 +12,7 @@ use Exception;
 
 class VirusTotalService
 {
-    private string $apiKey;
+    private ?string $apiKey;
     private string $baseUrl;
     private int $timeout;
     private int $maxRetries;
@@ -20,11 +20,11 @@ class VirusTotalService
 
     public function __construct()
     {
-        $this->apiKey = config('services.virustotal.api_key');
-        $this->baseUrl = config('services.virustotal.base_url');
-        $this->timeout = config('services.virustotal.timeout');
-        $this->maxRetries = config('services.virustotal.max_retries');
-        $this->retryDelay = config('services.virustotal.retry_delay');
+        $this->apiKey = config('services.virustotal.api_key') ?: null;
+        $this->baseUrl = config('services.virustotal.base_url', 'https://www.virustotal.com/api/v3');
+        $this->timeout = (int) config('services.virustotal.timeout', 30);
+        $this->maxRetries = (int) config('services.virustotal.max_retries', 3);
+        $this->retryDelay = (int) config('services.virustotal.retry_delay', 1000);
     }
 
     /**
@@ -142,6 +142,8 @@ class VirusTotalService
         $fileContent = Storage::disk($disk)->get($storagePath);
         $fileName = basename($storagePath);
 
+        $this->ensureApiKeyConfigured();
+
         $response = Http::timeout($this->timeout)
             ->withHeaders([
                 'x-apikey' => $this->apiKey,
@@ -236,6 +238,8 @@ class VirusTotalService
      */
     private function makeRequest(string $method, string $endpoint, array $data = [], ?string $filePath = null): Response
     {
+        $this->ensureApiKeyConfigured();
+
         $url = $this->baseUrl . $endpoint;
         $attempt = 0;
 
@@ -304,6 +308,8 @@ class VirusTotalService
      */
     private function makeRequestWithContent(string $method, string $endpoint, array $data = [], ?string $fileContent = null, ?string $fileName = null): Response
     {
+        $this->ensureApiKeyConfigured();
+
         $url = $this->baseUrl . $endpoint;
         $attempt = 0;
 
@@ -372,6 +378,16 @@ class VirusTotalService
     private function logRequest(string $action, string $description): void
     {
         // Audit logging removed - will be handled by audit-center package middleware
+    }
+
+    /**
+     * Ensure API key is configured, throw exception if not
+     */
+    private function ensureApiKeyConfigured(): void
+    {
+        if (empty($this->apiKey)) {
+            throw new Exception('VirusTotal API key is not configured. Please set VIRUSTOTAL_API_KEY in your .env file.');
+        }
     }
 
     /**
