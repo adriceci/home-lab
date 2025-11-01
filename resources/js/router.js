@@ -4,6 +4,7 @@ import { useAuth } from "@/composables/useAuth";
 import Dashboard from "@/views/Dashboard.vue";
 import Analytics from "@/views/Analytics.vue";
 import Files from "@/views/Files.vue";
+import Domains from "@/views/Domains.vue";
 import AuditLogs from "@/vendor/audit-center/components/AuditLogs.vue";
 import Login from "@/views/Login.vue";
 import NotFound from "@/views/system/NotFound.vue";
@@ -24,6 +25,11 @@ const appRoutes = [
         path: "/files",
         component: AppLayout,
         children: [{ path: "", name: "files", component: Files }],
+    },
+    {
+        path: "/domains",
+        component: AppLayout,
+        children: [{ path: "", name: "domains", component: Domains }],
     },
     {
         path: "/audit-logs",

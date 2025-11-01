@@ -68,50 +68,26 @@ class ApiService {
         try {
             // For public endpoints, create a separate axios instance without auth interceptors
             if (!requireAuth) {
-                // If URL starts with '/', it's an absolute path, use baseURL as root
-                // Otherwise, use baseURL as prefix
+                // Normalize URL: remove leading '/' so baseURL can prepend correctly
+                let finalUrl = url.startsWith('/') ? url.substring(1) : url;
                 const publicClient = axios.create({
-                    baseURL: url.startsWith('/') ? "" : "/api",
+                    baseURL: "/api", // Always use /api prefix for API calls
                     timeout: 10000,
                     headers: {
                         "Content-Type": "application/json",
                         Accept: "application/json",
                     },
                 });
-                const response = await publicClient.get(url, { params });
+                const response = await publicClient.get(finalUrl, { params });
                 return response.data;
             }
             
-            // For authenticated endpoints, handle absolute paths
-            if (url.startsWith('/')) {
-                const absoluteClient = axios.create({
-                    baseURL: "",
-                    timeout: 10000,
-                    headers: {
-                        "Content-Type": "application/json",
-                        Accept: "application/json",
-                    },
-                });
-                
-                // Add auth token
-                const token = localStorage.getItem("auth_token");
-                if (token) {
-                    absoluteClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-                }
-                
-                // Add CSRF token
-                const csrfToken = document
-                    .querySelector('meta[name="csrf-token"]')
-                    ?.getAttribute("content");
-                if (csrfToken) {
-                    absoluteClient.defaults.headers.common["X-CSRF-TOKEN"] = csrfToken;
-                }
-                
-                const response = await absoluteClient.get(url, { params });
-                return response.data;
-            }
+            // For authenticated endpoints, use apiClient which has baseURL: "/api"
+            // If URL starts with '/', remove it so apiClient can prepend its baseURL
+            // This ensures all API calls go to /api/* instead of being caught by web routes
+            let finalUrl = url.startsWith('/') ? url.substring(1) : url;
             
-            const response = await apiClient.get(url, { params });
+            const response = await apiClient.get(finalUrl, { params });
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -120,7 +96,9 @@ class ApiService {
 
     static async post(url, data = {}) {
         try {
-            const response = await apiClient.post(url, data);
+            // Normalize URL: remove leading '/' so apiClient can prepend its baseURL
+            let finalUrl = url.startsWith('/') ? url.substring(1) : url;
+            const response = await apiClient.post(finalUrl, data);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -129,7 +107,9 @@ class ApiService {
 
     static async put(url, data = {}) {
         try {
-            const response = await apiClient.put(url, data);
+            // Normalize URL: remove leading '/' so apiClient can prepend its baseURL
+            let finalUrl = url.startsWith('/') ? url.substring(1) : url;
+            const response = await apiClient.put(finalUrl, data);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -138,7 +118,9 @@ class ApiService {
 
     static async patch(url, data = {}) {
         try {
-            const response = await apiClient.patch(url, data);
+            // Normalize URL: remove leading '/' so apiClient can prepend its baseURL
+            let finalUrl = url.startsWith('/') ? url.substring(1) : url;
+            const response = await apiClient.patch(finalUrl, data);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -147,7 +129,9 @@ class ApiService {
 
     static async delete(url) {
         try {
-            const response = await apiClient.delete(url);
+            // Normalize URL: remove leading '/' so apiClient can prepend its baseURL
+            let finalUrl = url.startsWith('/') ? url.substring(1) : url;
+            const response = await apiClient.delete(finalUrl);
             return response.data;
         } catch (error) {
             throw this.handleError(error);

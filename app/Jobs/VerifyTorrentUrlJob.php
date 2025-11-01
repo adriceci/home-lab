@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\DownloadStatus;
+use App\Exceptions\VirusTotalException;
 use App\Jobs\DownloadTorrentJob;
 use App\Models\File;
 use App\Models\ScannedUrl;
@@ -142,7 +143,7 @@ class VerifyTorrentUrlJob implements ShouldQueue
             if ($needsNewScan) {
                 $scanResult = $virusTotalService->scanUrl($this->url);
                 $scanId = $scanResult['data']['id'] ?? null;
-                
+
                 if (!$scanId) {
                     throw new Exception('Failed to get scan ID from VirusTotal');
                 }
@@ -158,10 +159,10 @@ class VerifyTorrentUrlJob implements ShouldQueue
             try {
                 // Get analysis status using the Analysis ID
                 $analysisResult = $virusTotalService->getAnalysis($scanId);
-                
+
                 // Check if analysis is complete
                 $analysisStatus = $analysisResult['data']['attributes']['status'] ?? null;
-                
+
                 if ($analysisStatus !== 'completed') {
                     // Analysis not ready yet, check if we should retry or timeout
                     $retryDelay = 30; // seconds
@@ -169,7 +170,7 @@ class VerifyTorrentUrlJob implements ShouldQueue
                     $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
                         ? $scannedUrl->updated_at
                         : now();
-                    
+
                     if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
                         Log::warning('Analysis taking too long, aborting verification', [
                             'url' => $this->url,
@@ -177,20 +178,22 @@ class VerifyTorrentUrlJob implements ShouldQueue
                             'status' => $analysisStatus,
                             'scan_initiated_at' => $scanInitiatedAt,
                         ]);
-                        
-                        if ($file) {
-                            $statusService->updateStatus($file, DownloadStatus::FAILED, 'URL verification timeout');
-                        }
-                        
+
+                        // Update scanned URL with timeout status
                         $scannedUrl->update([
                             'virustotal_status' => 'timeout',
                         ]);
+
+                        if ($file) {
+                            $statusService->updateStatus($file, DownloadStatus::FAILED, 'URL verification timeout');
+                        }
+
                         return;
                     }
 
                     // Refresh to get latest state before scheduling retry
                     $scannedUrl->fresh();
-                    
+
                     // Only schedule retry if status is still scanning (prevents duplicate retries)
                     if ($scannedUrl->virustotal_status !== 'scanning') {
                         Log::info('Scan status changed, not scheduling retry', [
@@ -218,16 +221,16 @@ class VerifyTorrentUrlJob implements ShouldQueue
                     )->delay(now()->addSeconds($retryDelay));
                     return;
                 }
-                
+
                 // Analysis is complete, get the URL ID (base64 encoded) to retrieve full report
                 $urlId = $virusTotalService->encodeUrlId($this->url);
-                
+
                 // Get full URL report using the URL ID
                 $reportResult = $virusTotalService->getUrlReport($urlId);
-                
+
                 // Check if the report has complete analysis results
                 $hasCompleteResults = $this->hasCompleteAnalysisResults($reportResult);
-                
+
                 if (!$hasCompleteResults) {
                     // This shouldn't happen if analysis is completed, but handle it just in case
                     Log::warning('Analysis completed but report incomplete, retrying', [
@@ -235,7 +238,7 @@ class VerifyTorrentUrlJob implements ShouldQueue
                         'analysis_id' => $scanId,
                         'url_id' => $urlId,
                     ]);
-                    
+
                     // Retry after a delay
                     VerifyTorrentUrlJob::dispatch(
                         $this->url,
@@ -283,8 +286,63 @@ class VerifyTorrentUrlJob implements ShouldQueue
                 }
 
                 $this->proceedToDownload($statusService);
+            } catch (VirusTotalException $e) {
+                // VirusTotal-specific error - update virustotal_status based on error type
+                Log::warning('VirusTotal error while getting analysis or URL report', [
+                    'url' => $this->url,
+                    'analysis_id' => $scanId,
+                    'error_code' => $e->getErrorCode(),
+                    'http_code' => $e->getHttpCode(),
+                    'error' => $e->getMessage(),
+                    'retryable' => $e->isRetryable(),
+                ]);
+
+                // Check if scan was just initiated (should allow some time)
+                $retryDelay = 30;
+                $maxRetryAge = now()->subMinutes(10);
+                $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
+                    ? $scannedUrl->updated_at
+                    : now();
+
+                if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge) || !$e->isRetryable()) {
+                    Log::error('Failed to get analysis or URL report after multiple attempts', [
+                        'url' => $this->url,
+                        'analysis_id' => $scanId,
+                        'scan_initiated_at' => $scanInitiatedAt,
+                        'error_code' => $e->getErrorCode(),
+                    ]);
+
+                    // Update scanned URL with error status based on exception
+                    $virusTotalService = app(VirusTotalService::class);
+                    $errorStatus = $virusTotalService->getStatusFromError($e);
+                    $scannedUrl->update([
+                        'virustotal_status' => $errorStatus,
+                    ]);
+
+                    if ($file) {
+                        // Update status with VirusTotal exception to automatically set virustotal_status
+                        $statusService->updateStatus($file, DownloadStatus::FAILED, 'Failed to verify URL', $e);
+                    }
+
+                    throw $e;
+                }
+
+                // Retry if error is retryable and scan is still recent
+                if ($e->isRetryable()) {
+                    $scannedUrl->fresh();
+                    if ($scannedUrl->virustotal_status === 'scanning') {
+                        VerifyTorrentUrlJob::dispatch(
+                            $this->url,
+                            $this->magnetLink,
+                            $this->torrentLink,
+                            $this->fileId,
+                            $this->metadata
+                        )->delay(now()->addSeconds($retryDelay));
+                    }
+                }
+                return;
             } catch (Exception $e) {
-                // Error getting analysis or report - could be API issue or analysis not ready
+                // Generic error getting analysis or report
                 Log::warning('Error getting analysis or URL report, may need to retry', [
                     'url' => $this->url,
                     'analysis_id' => $scanId,
@@ -297,22 +355,23 @@ class VerifyTorrentUrlJob implements ShouldQueue
                 $scanInitiatedAt = $scannedUrl->virustotal_status === 'scanning' && $scannedUrl->virustotal_scan_id
                     ? $scannedUrl->updated_at
                     : now();
-                
+
                 if ($scanInitiatedAt && $scanInitiatedAt->lt($maxRetryAge)) {
                     Log::error('Failed to get analysis or URL report after multiple attempts', [
                         'url' => $this->url,
                         'analysis_id' => $scanId,
                         'scan_initiated_at' => $scanInitiatedAt,
                     ]);
-                    
-                    if ($file) {
-                        $statusService->updateStatus($file, DownloadStatus::FAILED, 'Failed to verify URL');
-                    }
-                    
+
+                    // Update scanned URL with generic error status
                     $scannedUrl->update([
                         'virustotal_status' => 'error',
                     ]);
-                    
+
+                    if ($file) {
+                        $statusService->updateStatus($file, DownloadStatus::FAILED, 'Failed to verify URL');
+                    }
+
                     throw $e;
                 }
 
@@ -335,6 +394,50 @@ class VerifyTorrentUrlJob implements ShouldQueue
                     ]);
                 }
             }
+        } catch (VirusTotalException $e) {
+            // VirusTotal error - update status accordingly
+            Log::error('VirusTotal error during URL verification', [
+                'url' => $this->url,
+                'error_code' => $e->getErrorCode(),
+                'http_code' => $e->getHttpCode(),
+                'error' => $e->getMessage(),
+            ]);
+
+            // Try to find scanned URL if it exists
+            try {
+                $scannedUrl = ScannedUrl::where('url', $this->url)
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if ($scannedUrl) {
+                    $virusTotalService = app(VirusTotalService::class);
+                    $errorStatus = $virusTotalService->getStatusFromError($e);
+                    $scannedUrl->update([
+                        'virustotal_status' => $errorStatus,
+                    ]);
+                }
+            } catch (Exception $updateException) {
+                Log::warning('Failed to update scanned URL status', [
+                    'url' => $this->url,
+                    'error' => $updateException->getMessage(),
+                ]);
+            }
+
+            // Update file status if we have a file record
+            try {
+                $file = $this->fileId ? File::find($this->fileId) : null;
+                if ($file) {
+                    // Update status with VirusTotal exception to automatically set virustotal_status
+                    $statusService->updateStatus($file, DownloadStatus::FAILED, $e->getMessage(), $e);
+                }
+            } catch (Exception $updateException) {
+                Log::warning('Failed to update file status', [
+                    'file_id' => $this->fileId,
+                    'error' => $updateException->getMessage(),
+                ]);
+            }
+
+            throw $e;
         } catch (Exception $e) {
             Log::error('Failed to verify torrent URL', [
                 'url' => $this->url,
@@ -360,22 +463,22 @@ class VerifyTorrentUrlJob implements ShouldQueue
         // Check if we have analysis stats (indicates scan has been processed)
         if (isset($attributes['last_analysis_stats'])) {
             $stats = $attributes['last_analysis_stats'];
-            
+
             // If we have stats with at least some results, consider it complete
-            $totalResults = ($stats['harmless'] ?? 0) + 
-                           ($stats['malicious'] ?? 0) + 
-                           ($stats['suspicious'] ?? 0) + 
-                           ($stats['undetected'] ?? 0);
-            
+            $totalResults = ($stats['harmless'] ?? 0) +
+                ($stats['malicious'] ?? 0) +
+                ($stats['suspicious'] ?? 0) +
+                ($stats['undetected'] ?? 0);
+
             // Report is considered complete if we have at least some analysis results
             // or if it has a reputation score (which indicates it was analyzed)
             return $totalResults > 0 || isset($attributes['reputation']);
         }
 
         // If we have reputation or other analysis data, consider it complete
-        return isset($attributes['reputation']) || 
-               isset($attributes['last_analysis_date']) ||
-               isset($attributes['last_modification_date']);
+        return isset($attributes['reputation']) ||
+            isset($attributes['last_analysis_date']) ||
+            isset($attributes['last_modification_date']);
     }
 
     /**
@@ -386,12 +489,12 @@ class VerifyTorrentUrlJob implements ShouldQueue
         // Check analysis stats
         if (isset($virusTotalResponse['data']['attributes']['last_analysis_stats'])) {
             $stats = $virusTotalResponse['data']['attributes']['last_analysis_stats'];
-            
+
             // If any security vendor flagged it as malicious, reject it
             if (isset($stats['malicious']) && $stats['malicious'] > 0) {
                 return true;
             }
-            
+
             // Also reject if suspicious
             if (isset($stats['suspicious']) && $stats['suspicious'] > 0) {
                 return true;
@@ -458,4 +561,3 @@ class VerifyTorrentUrlJob implements ShouldQueue
         ]);
     }
 }
-

@@ -5,6 +5,7 @@ import {
     ChartBarIcon,
     DocumentTextIcon,
     FolderIcon,
+    GlobeAltIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
     SunIcon,
@@ -24,6 +25,7 @@ const allMenuItems = computed(() => {
         { name: "Dashboard", icon: HomeIcon, to: "/dashboard" },
         { name: "Analytics", icon: ChartBarIcon, to: "/analytics" },
         { name: "Archivos", icon: FolderIcon, to: "/files" },
+        { name: "Dominios", icon: GlobeAltIcon, to: "/domains" },
         {
             name: "Audit Logs",
             icon: DocumentTextIcon,

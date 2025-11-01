@@ -3,6 +3,7 @@
 use AdriCeci\AuditCenter\Http\Middleware\AuditLogMiddleware;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Jobs\CleanupQuarantineJob;
+use App\Jobs\RefreshAllDomainsVirusTotalJob;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -37,4 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         // Cleanup quarantine files daily at 7:00 AM
         $schedule->job(new CleanupQuarantineJob(10))->dailyAt('07:00');
+        
+        // Refresh VirusTotal information for all active domains daily at 2:00 AM
+        $schedule->job(new RefreshAllDomainsVirusTotalJob())->dailyAt('02:00');
     })->create();

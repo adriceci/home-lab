@@ -215,6 +215,7 @@ class VirusTotalService
 
     /**
      * Get domain information
+     * Returns complete domain information including reputation, analysis stats, categories, etc.
      */
     public function getDomainInfo(string $domain): array
     {
@@ -229,6 +230,27 @@ class VirusTotalService
         }
 
         throw $this->parseErrorResponse($response, 'Failed to get domain info');
+    }
+
+    /**
+     * Get votes on a domain
+     * 
+     * @param string $domain
+     * @return array
+     */
+    public function getDomainVotes(string $domain): array
+    {
+        $this->logRequest('get_domain_votes', "Getting votes for domain: {$domain}");
+
+        $response = $this->makeRequest('GET', "/domains/{$domain}/votes");
+
+        if ($response->successful()) {
+            $data = $response->json();
+            $this->logRequest('get_domain_votes_success', "Domain votes retrieved successfully for: {$domain}");
+            return $data;
+        }
+
+        throw $this->parseErrorResponse($response, 'Failed to get domain votes');
     }
 
     /**

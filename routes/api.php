@@ -59,5 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{domain}', [DomainController::class, 'show']);
         Route::put('/{domain}', [DomainController::class, 'update']);
         Route::delete('/{domain}', [DomainController::class, 'destroy']);
+        
+        // VirusTotal routes for domains
+        Route::get('/{domain}/virustotal', [DomainController::class, 'getVirusTotalInfo']);
+        Route::post('/{domain}/refresh-virustotal', [DomainController::class, 'refreshVirusTotalInfo']);
     });
 });

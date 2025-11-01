@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\UpdateDomainVirusTotalInfoJob;
 use App\Models\Domain;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class DomainController extends Controller
 {
@@ -61,7 +63,13 @@ class DomainController extends Controller
             'is_verified' => 'boolean',
         ]);
 
-        $domain = Domain::create($validated);
+        // Create domain with pending VirusTotal status
+        $domain = Domain::create(array_merge($validated, [
+            'virustotal_status' => 'pending',
+        ]));
+
+        // Dispatch job to update VirusTotal information asynchronously
+        UpdateDomainVirusTotalInfoJob::dispatch($domain->id);
 
         return response()->json($domain, 201);
     }
@@ -102,6 +110,47 @@ class DomainController extends Controller
         $domain->delete();
 
         return response()->json(['message' => 'Domain deleted successfully']);
+    }
+
+    /**
+     * Get VirusTotal information for a domain
+     * Returns stored VirusTotal information (does not make new API call)
+     */
+    public function getVirusTotalInfo(Domain $domain): JsonResponse
+    {
+        return response()->json([
+            'virustotal_reputation' => $domain->virustotal_reputation,
+            'virustotal_votes_harmless' => $domain->virustotal_votes_harmless,
+            'virustotal_votes_malicious' => $domain->virustotal_votes_malicious,
+            'virustotal_last_analysis_date' => $domain->virustotal_last_analysis_date,
+            'virustotal_last_analysis_stats' => $domain->virustotal_last_analysis_stats,
+            'virustotal_categories' => $domain->virustotal_categories,
+            'virustotal_whois' => $domain->virustotal_whois,
+            'virustotal_subdomains' => $domain->virustotal_subdomains,
+            'virustotal_last_checked_at' => $domain->virustotal_last_checked_at,
+            'virustotal_status' => $domain->virustotal_status,
+        ]);
+    }
+
+    /**
+     * Refresh VirusTotal information for a domain
+     * Dispatches a job to update the information asynchronously
+     */
+    public function refreshVirusTotalInfo(Domain $domain): JsonResponse
+    {
+        // Update status to indicate refresh is in progress
+        $domain->update([
+            'virustotal_status' => 'pending',
+        ]);
+
+        // Dispatch job to update VirusTotal information
+        UpdateDomainVirusTotalInfoJob::dispatch($domain->id);
+
+        return response()->json([
+            'message' => 'VirusTotal information refresh has been queued',
+            'domain_id' => $domain->id,
+            'status' => 'pending',
+        ]);
     }
 }
 
