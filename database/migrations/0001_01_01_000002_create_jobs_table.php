@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('jobs', function (Blueprint $table) {
-            $table->uuid('id')->primary()->comment('Unique job identifier');
+            $table->id()->comment('Unique job identifier');
             $table->string('queue')->index()->comment('Queue name where the job belongs');
             $table->longText('payload')->comment('Serialized job data and parameters');
             $table->unsignedTinyInteger('attempts')->comment('Number of times the job has been attempted');
@@ -22,7 +22,7 @@ return new class extends Migration
         });
 
         Schema::create('job_batches', function (Blueprint $table) {
-            $table->string('id')->primary()->comment('Unique batch identifier');
+            $table->id()->comment('Unique batch identifier');
             $table->string('name')->comment('Human-readable name for the batch');
             $table->integer('total_jobs')->comment('Total number of jobs in this batch');
             $table->integer('pending_jobs')->comment('Number of jobs still pending execution');
@@ -35,7 +35,7 @@ return new class extends Migration
         });
 
         Schema::create('failed_jobs', function (Blueprint $table) {
-            $table->uuid('id')->primary()->comment('Unique identifier for the failed job record');
+            $table->id()->comment('Unique identifier for the failed job record');
             $table->string('uuid')->unique()->comment('Original job UUID that failed');
             $table->text('connection')->comment('Database connection name used for the job');
             $table->text('queue')->comment('Queue name where the job was processed');
