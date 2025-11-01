@@ -46,7 +46,7 @@ class ScannedUrl extends Model
     public static function extractDomain(string $url): string
     {
         $parsedUrl = parse_url($url);
-        
+
         if (!isset($parsedUrl['host'])) {
             // If parse_url fails, try a simpler approach
             $url = str_replace(['http://', 'https://'], '', $url);
@@ -55,13 +55,13 @@ class ScannedUrl extends Model
         } else {
             $domain = $parsedUrl['host'];
         }
-        
+
         // Remove port if present
         $domain = explode(':', $domain)[0];
-        
+
         // Remove www. prefix
         $domain = preg_replace('/^www\./', '', $domain);
-        
+
         return $domain;
     }
 
@@ -96,9 +96,8 @@ class ScannedUrl extends Model
      *
      * @return string
      */
-    public function getPrefixUuid(): string
+    protected static function getUuidPrefix(): string
     {
         return 'URL';
     }
 }
-

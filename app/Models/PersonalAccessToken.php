@@ -26,7 +26,7 @@ class PersonalAccessToken extends SanctumPersonalAccessToken
      *
      * @return string
      */
-    public function getPrefixUuid(): string
+    protected static function getUuidPrefix(): string
     {
         return 'PAT';
     }

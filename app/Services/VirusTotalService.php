@@ -258,7 +258,9 @@ class VirusTotalService
 
                 $response = match (strtoupper($method)) {
                     'GET' => $request->get($url, $data),
-                    'POST' => $filePath ? $request->post($url) : $request->post($url, $data),
+                    'POST' => $filePath
+                        ? $request->post($url)
+                        : ($data ? $request->asForm()->post($url, $data) : $request->post($url)),
                     'PUT' => $request->put($url, $data),
                     'DELETE' => $request->delete($url),
                     default => throw new Exception("Unsupported HTTP method: {$method}")

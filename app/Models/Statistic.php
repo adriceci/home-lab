@@ -43,7 +43,7 @@ class Statistic extends Model
      *
      * @return string
      */
-    public function getPrefixUuid(): string
+    protected static function getUuidPrefix(): string
     {
         return 'STA';
     }

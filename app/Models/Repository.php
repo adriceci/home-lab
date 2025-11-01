@@ -45,7 +45,7 @@ class Repository extends Model
      *
      * @return string
      */
-    public function getPrefixUuid(): string
+    protected static function getUuidPrefix(): string
     {
         return 'REP';
     }

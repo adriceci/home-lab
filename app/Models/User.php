@@ -67,7 +67,7 @@ class User extends Authenticatable
      *
      * @return string
      */
-    public function getPrefixUuid(): string
+    protected static function getUuidPrefix(): string
     {
         return 'USR';
     }

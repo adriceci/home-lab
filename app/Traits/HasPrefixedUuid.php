@@ -2,34 +2,39 @@
 
 namespace App\Traits;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 trait HasPrefixedUuid
 {
-    use HasUuids;
-
-    /**
-     * Generate a new UUID for the model with the model's prefix.
-     *
-     * @return string
-     */
-    public function newUniqueId(): string
+    protected static function bootHasPrefixedUuid()
     {
-        return $this->createUuid();
+        static::creating(function (Model $model) {
+            $keyName = $model->getKeyName();
+            $currentId = $model->{$keyName};
+            $prefix = strtoupper(static::getUuidPrefix());
+
+            // Only generate a new UUID if:
+            // 1. No ID is set, OR
+            // 2. ID is set but doesn't have the correct prefix
+            if (empty($currentId) || !static::hasCorrectPrefix($currentId, $prefix)) {
+                $newId = static::generatePrefixedUuid($prefix);
+                $model->{$keyName} = $newId;
+            }
+        });
     }
 
-    /**
-     * Create a UUID with the model's prefix.
-     * Replaces the first N characters of a standard UUID with the prefix,
-     * where N is the length of the prefix (3-4 characters).
-     *
-     * @return string
-     */
-    protected function createUuid(): string
+    protected static function hasCorrectPrefix(string $id, string $prefix): bool
     {
-        $prefix = strtoupper($this->getPrefixUuid());
-        
+        return str_starts_with($id, $prefix . '-');
+    }
+
+    public static function generatePrefixedUuid(?string $prefix = null): string
+    {
+        if ($prefix === null) {
+            $prefix = strtoupper(static::getUuidPrefix());
+        }
+
         // Validate prefix length
         $prefixLength = strlen($prefix);
         if ($prefixLength < 3 || $prefixLength > 4) {
@@ -38,35 +43,39 @@ trait HasPrefixedUuid
             );
         }
 
-        // Generate standard UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+        // Generate standard UUID
         $uuid = (string) Str::uuid();
-        
-        // Remove hyphens to replace characters more easily
-        $uuidWithoutHyphens = str_replace('-', '', $uuid);
-        
-        // Replace first N characters with prefix
-        $prefixedUuid = $prefix . substr($uuidWithoutHyphens, $prefixLength);
-        
-        // Restore UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-        // Format: 8-4-4-4-12 characters
-        $formattedUuid = sprintf(
-            '%s-%s-%s-%s-%s',
-            substr($prefixedUuid, 0, 8),
-            substr($prefixedUuid, 8, 4),
-            substr($prefixedUuid, 12, 4),
-            substr($prefixedUuid, 16, 4),
-            substr($prefixedUuid, 20)
-        );
-        
-        return $formattedUuid;
+
+        // Return format: PREFIX-UUID_COMPLETO
+        // Example: ACC-0001-041f-487a-a626-5ce20f0d88e2
+        return $prefix . '-' . substr($uuid, $prefixLength + 1);
+    }
+
+    public function initializeHasPrefixedUuid()
+    {
+        $this->incrementing = false;
+        $this->keyType = 'string';
+    }
+
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'id';
+    }
+
+    /**
+     * Retrieve the model for a bound value.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
     }
 
     /**
      * Get the prefix UUID for this model.
-     * Must be implemented by the model and return a string of 3-4 uppercase characters.
-     *
-     * @return string
+     * Must return a string of 3-4 characters.
      */
-    abstract public function getPrefixUuid(): string;
+    abstract protected static function getUuidPrefix(): string;
 }
-
