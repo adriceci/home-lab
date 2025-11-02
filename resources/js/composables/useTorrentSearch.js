@@ -30,12 +30,17 @@ export function useTorrentSearch() {
                 results.value = response.data || [];
                 const resultCount = results.value.length;
                 if (resultCount > 0) {
-                    showSuccess(`Found ${resultCount} torrent${resultCount !== 1 ? 's' : ''}`);
+                    showSuccess(
+                        `Found ${resultCount} torrent${
+                            resultCount !== 1 ? "s" : ""
+                        }`
+                    );
                 } else {
                     showInfo("No torrents found for your search");
                 }
             } else {
-                const errorMessage = response.message || "Error performing search";
+                const errorMessage =
+                    response.message || "Error performing search";
                 error.value = errorMessage;
                 results.value = [];
                 showError(errorMessage);
@@ -48,46 +53,6 @@ export function useTorrentSearch() {
             throw err;
         } finally {
             loading.value = false;
-        }
-    };
-
-    const searchTorrentsExtended = async (query, categories = []) => {
-        if (!query || query.trim().length < 2) {
-            return;
-        }
-
-        loadingExtended.value = true;
-        error.value = null;
-        searchQuery.value = query;
-
-        try {
-            const response = await ApiService.post("/torrents/search-extended", {
-                query: query.trim(),
-                categories: categories,
-            });
-
-            if (response.success) {
-                results.value = response.data || [];
-                const resultCount = results.value.length;
-                if (resultCount > 0) {
-                    showSuccess(`Found ${resultCount} torrent${resultCount !== 1 ? 's' : ''} with extended search`);
-                } else {
-                    showInfo("No torrents found for your search");
-                }
-            } else {
-                const errorMessage = response.message || "Error performing extended search";
-                error.value = errorMessage;
-                results.value = [];
-                showError(errorMessage);
-            }
-        } catch (err) {
-            const errorMessage = err.message || "Failed to perform extended search";
-            error.value = errorMessage;
-            results.value = [];
-            showError(errorMessage);
-            throw err;
-        } finally {
-            loadingExtended.value = false;
         }
     };
 
@@ -111,7 +76,6 @@ export function useTorrentSearch() {
 
         // Actions
         searchTorrents,
-        searchTorrentsExtended,
         clearResults,
         clearError,
     };
