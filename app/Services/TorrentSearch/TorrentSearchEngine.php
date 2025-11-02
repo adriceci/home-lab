@@ -73,9 +73,22 @@ class TorrentSearchEngine
             }
         }
 
+        // Sort results by seeders (descending) and then by leechers (descending)
+        // This ensures results from all platforms are mixed together, ordered by quality
+        usort($results, function ($a, $b) {
+            // First sort by seeders (descending)
+            $seedersCompare = ($b['seeders'] ?? 0) <=> ($a['seeders'] ?? 0);
+            if ($seedersCompare !== 0) {
+                return $seedersCompare;
+            }
+            // If seeders are equal, sort by leechers (descending)
+            return ($b['leechers'] ?? 0) <=> ($a['leechers'] ?? 0);
+        });
+
         LogEngine::info('torrent_search', '[TorrentSearchEngine] Search completed', [
             'total_results' => count($results),
             'query' => $query,
+            'results_by_source' => array_count_values(array_column($results, 'source')),
         ]);
 
         return $results;
@@ -264,6 +277,111 @@ class TorrentSearchEngine
 
             return null;
         }
+    }
+
+    /**
+     * Search torrents with extended magnet link fetching (option 2)
+     * This performs a normal search and then fetches magnet links from detail pages
+     *
+     * @param string $query
+     * @param array $categories
+     * @return array
+     */
+    public function searchWithMagnets(string $query, array $categories = []): array
+    {
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Starting extended search with magnet fetching', [
+            'query' => $query,
+            'categories' => $categories,
+        ]);
+
+        // First, do a normal search
+        $results = $this->search($query, $categories);
+
+        if (empty($results)) {
+            return $results;
+        }
+
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Normal search completed, fetching magnet links', [
+            'results_count' => count($results),
+        ]);
+
+        // Get active torrent sites to find 1337x scraper
+        $sites = Domain::where('type', 'torrent')
+            ->where('is_active', true)
+            ->get();
+
+        // Find 1337x site and scraper
+        $x1337xSite = $sites->firstWhere('name', '1337x');
+        if (!$x1337xSite) {
+            LogEngine::warning('torrent_search', '[TorrentSearchEngine] 1337x site not found, skipping magnet fetching');
+            return $results;
+        }
+
+        $scraper = $this->getScraperForSite($x1337xSite);
+        if (!$scraper || !($scraper instanceof \App\Services\TorrentSearch\Scrapers\X1337xScraper)) {
+            LogEngine::warning('torrent_search', '[TorrentSearchEngine] 1337x scraper not found, skipping magnet fetching');
+            return $results;
+        }
+
+        $magnetFetched = 0;
+        $magnetFailed = 0;
+
+        // For each result from 1337x without magnet_link, try to fetch it
+        foreach ($results as &$result) {
+            // Only process 1337x results that don't have magnet links and have source_url
+            if ($result['source'] === '1337x' && empty($result['magnet_link']) && !empty($result['source_url'])) {
+                try {
+                    LogEngine::debug('torrent_search', '[TorrentSearchEngine] Fetching magnet link for result', [
+                        'title' => substr($result['title'], 0, 50),
+                        'source_url' => $result['source_url'],
+                    ]);
+
+                    $magnetLink = $scraper->fetchMagnetFromDetailUrl($result['source_url']);
+
+                    if (!empty($magnetLink)) {
+                        $result['magnet_link'] = $magnetLink;
+                        $magnetFetched++;
+                        LogEngine::debug('torrent_search', '[TorrentSearchEngine] Successfully fetched magnet link', [
+                            'title' => substr($result['title'], 0, 50),
+                        ]);
+                    } else {
+                        $magnetFailed++;
+                        LogEngine::debug('torrent_search', '[TorrentSearchEngine] Failed to fetch magnet link', [
+                            'title' => substr($result['title'], 0, 50),
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    $magnetFailed++;
+                    LogEngine::warning('torrent_search', '[TorrentSearchEngine] Error fetching magnet link', [
+                        'title' => substr($result['title'], 0, 50),
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continue with next result, don't fail the entire search
+                }
+            }
+        }
+        unset($result); // Break reference
+
+        // Sort results by seeders (descending) and then by leechers (descending)
+        // This ensures results from all platforms are mixed together, ordered by quality
+        usort($results, function ($a, $b) {
+            // First sort by seeders (descending)
+            $seedersCompare = ($b['seeders'] ?? 0) <=> ($a['seeders'] ?? 0);
+            if ($seedersCompare !== 0) {
+                return $seedersCompare;
+            }
+            // If seeders are equal, sort by leechers (descending)
+            return ($b['leechers'] ?? 0) <=> ($a['leechers'] ?? 0);
+        });
+
+        LogEngine::info('torrent_search', '[TorrentSearchEngine] Extended search completed', [
+            'total_results' => count($results),
+            'magnets_fetched' => $magnetFetched,
+            'magnets_failed' => $magnetFailed,
+            'results_by_source' => array_count_values(array_column($results, 'source')),
+        ]);
+
+        return $results;
     }
 
     /**

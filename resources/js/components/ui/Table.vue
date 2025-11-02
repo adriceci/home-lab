@@ -310,17 +310,10 @@ watch(
                 <input
                     v-model="searchQuery"
                     type="text"
-                    placeholder="Buscar en la tabla..."
-                    class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 text-gray-900 dark:text-white pl-10 pr-4 w-full placeholder-gray-500 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Buscar"
+                    class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 text-gray-900 dark:text-white pl-10 pr-4 w-auto placeholder-gray-500 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
             </div>
-            <p
-                v-if="enableSearch && data.length > 0"
-                class="mt-2 text-sm text-gray-500 dark:text-gray-400"
-            >
-                Mostrando {{ formatNumber(filteredData.length) }} de
-                {{ formatNumber(data.length) }} resultados
-            </p>
         </div>
 
         <!-- Table -->
@@ -463,28 +456,6 @@ watch(
             <div
                 class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between"
             >
-                <div>
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        Mostrando
-                        {{
-                            formatNumber(
-                                filteredData.length > 0
-                                    ? (currentPage - 1) * itemsPerPage + 1
-                                    : 0
-                            )
-                        }}
-                        a
-                        {{
-                            formatNumber(
-                                Math.min(
-                                    currentPage * itemsPerPage,
-                                    filteredData.length
-                                )
-                            )
-                        }}
-                        de {{ formatNumber(filteredData.length) }} resultados
-                    </p>
-                </div>
                 <div>
                     <nav
                         class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"

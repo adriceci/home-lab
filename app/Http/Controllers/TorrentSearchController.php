@@ -55,6 +55,40 @@ class TorrentSearchController extends Controller
     }
 
     /**
+     * Extended search for torrents with magnet link fetching (option 2)
+     * This performs a normal search and then fetches magnet links from detail pages
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function searchExtended(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'query' => 'required|string|min:2|max:255',
+            'categories' => 'nullable|array',
+            'categories.*.name' => 'string',
+            'categories.*.code' => 'integer',
+        ]);
+
+        try {
+            $categories = $validated['categories'] ?? [];
+            $results = $this->searchEngine->searchWithMagnets($validated['query'], $categories);
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'count' => count($results),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error performing extended search: ' . $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
+    }
+
+    /**
      * Initiate torrent download process
      *
      * @param Request $request

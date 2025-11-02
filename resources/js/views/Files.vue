@@ -328,19 +328,6 @@ onMounted(() => {
                 class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between"
             >
                 <div>
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        Mostrando
-                        {{
-                            files.length > 0
-                                ? (currentPage - 1) * perPage + 1
-                                : 0
-                        }}
-                        a
-                        {{ Math.min(currentPage * perPage, total) }} de
-                        {{ total }} resultados
-                    </p>
-                </div>
-                <div>
                     <nav
                         class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
                     >

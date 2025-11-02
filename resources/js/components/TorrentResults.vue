@@ -155,12 +155,6 @@ const columns = [
     </div>
 
     <div v-else-if="hasResults" class="space-y-4">
-        <div class="px-6 py-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                Resultados de búsqueda ({{ results.length }})
-            </h3>
-        </div>
-
         <Table
             :data="results"
             :columns="columns"
