@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import {
     PlusIcon,
     PencilIcon,
@@ -8,7 +8,6 @@ import {
     XMarkIcon,
     InformationCircleIcon,
     ArrowPathIcon,
-    ShieldCheckIcon,
     ExclamationTriangleIcon,
 } from "@heroicons/vue/24/outline";
 import { Table, Drawer } from "@/components/ui";
@@ -129,6 +128,15 @@ const handleRefreshVirusTotal = async (domain) => {
         setTimeout(() => {
             fetchDomains();
         }, 1000);
+        // Also refresh the detail info if the drawer is open for this domain
+        if (selectedDomain.value && selectedDomain.value.id === domain.id) {
+            try {
+                const response = await getVirusTotalInfo(domain.id);
+                detailVirusTotalInfo.value = response;
+            } catch (err) {
+                // Error is handled silently for detail refresh
+            }
+        }
     } catch (err) {
         // Error is handled by composable
     }
@@ -253,17 +261,19 @@ const columns = [
 let pollInterval = null;
 const startPolling = () => {
     if (pollInterval) return;
-    
+
     pollInterval = setInterval(() => {
         // Check if domains.value exists and is an array before using .some()
         if (!domains.value || !Array.isArray(domains.value)) {
             return;
         }
-        
+
         const hasPending = domains.value.some(
-            (d) => d.virustotal_status === "pending" || d.virustotal_status === "scanning"
+            (d) =>
+                d.virustotal_status === "pending" ||
+                d.virustotal_status === "scanning"
         );
-        
+
         if (hasPending) {
             fetchDomains();
         } else {
@@ -329,9 +339,7 @@ onUnmounted(() => {
         >
             <!-- Domain Name Column -->
             <template #cell-name="{ value }">
-                <div
-                    class="text-sm font-medium text-gray-900 dark:text-white"
-                >
+                <div class="text-sm font-medium text-gray-900 dark:text-white">
                     {{ value }}
                 </div>
             </template>
@@ -362,31 +370,49 @@ onUnmounted(() => {
                 <span
                     :class="[
                         'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        getReputationColor(row.virustotal_reputation) === 'green'
+                        getReputationColor(row.virustotal_reputation) ===
+                        'green'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : getReputationColor(row.virustotal_reputation) === 'yellow'
+                            : getReputationColor(row.virustotal_reputation) ===
+                              'yellow'
                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                            : getReputationColor(row.virustotal_reputation) === 'red'
+                            : getReputationColor(row.virustotal_reputation) ===
+                              'red'
                             ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
                     ]"
                 >
-                    {{ row.virustotal_reputation !== null && row.virustotal_reputation !== undefined 
-                        ? `${row.virustotal_reputation} - ${getReputationLabel(row.virustotal_reputation)}`
-                        : 'N/A' }}
+                    {{
+                        row.virustotal_reputation !== null &&
+                        row.virustotal_reputation !== undefined
+                            ? `${
+                                  row.virustotal_reputation
+                              } - ${getReputationLabel(
+                                  row.virustotal_reputation
+                              )}`
+                            : "N/A"
+                    }}
                 </span>
             </template>
 
             <!-- Votes Column -->
             <template #cell-virustotal_votes="{ row }">
                 <div class="flex items-center space-x-3">
-                    <div class="flex items-center text-green-600 dark:text-green-400">
+                    <div
+                        class="flex items-center text-green-600 dark:text-green-400"
+                    >
                         <CheckIcon class="w-4 h-4 mr-1" />
-                        <span class="text-sm font-medium">{{ row.virustotal_votes_harmless || 0 }}</span>
+                        <span class="text-sm font-medium">{{
+                            row.virustotal_votes_harmless || 0
+                        }}</span>
                     </div>
-                    <div class="flex items-center text-red-600 dark:text-red-400">
+                    <div
+                        class="flex items-center text-red-600 dark:text-red-400"
+                    >
                         <XMarkIcon class="w-4 h-4 mr-1" />
-                        <span class="text-sm font-medium">{{ row.virustotal_votes_malicious || 0 }}</span>
+                        <span class="text-sm font-medium">{{
+                            row.virustotal_votes_malicious || 0
+                        }}</span>
                     </div>
                 </div>
             </template>
@@ -396,20 +422,29 @@ onUnmounted(() => {
                 <span
                     :class="[
                         'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        getVirusTotalStatusColor(row.virustotal_status) === 'green'
+                        getVirusTotalStatusColor(row.virustotal_status) ===
+                        'green'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : getVirusTotalStatusColor(row.virustotal_status) === 'blue'
+                            : getVirusTotalStatusColor(
+                                  row.virustotal_status
+                              ) === 'blue'
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                            : getVirusTotalStatusColor(row.virustotal_status) === 'red'
+                            : getVirusTotalStatusColor(
+                                  row.virustotal_status
+                              ) === 'red'
                             ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                            : getVirusTotalStatusColor(row.virustotal_status) === 'orange'
+                            : getVirusTotalStatusColor(
+                                  row.virustotal_status
+                              ) === 'orange'
                             ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
-                            : getVirusTotalStatusColor(row.virustotal_status) === 'yellow'
+                            : getVirusTotalStatusColor(
+                                  row.virustotal_status
+                              ) === 'yellow'
                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
                     ]"
                 >
-                    {{ row.virustotal_status || 'pending' }}
+                    {{ row.virustotal_status || "pending" }}
                 </span>
             </template>
 
@@ -552,10 +587,14 @@ onUnmounted(() => {
                     </label>
                 </div>
 
-                <div v-if="!editingDomain" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                <div
+                    v-if="!editingDomain"
+                    class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3"
+                >
                     <p class="text-sm text-blue-800 dark:text-blue-200">
                         <InformationCircleIcon class="w-4 h-4 inline mr-1" />
-                        Se verificará automáticamente la información de seguridad con VirusTotal al crear el dominio.
+                        Se verificará automáticamente la información de
+                        seguridad con VirusTotal al crear el dominio.
                     </p>
                 </div>
 
@@ -589,29 +628,56 @@ onUnmounted(() => {
             <div class="space-y-6">
                 <!-- Domain Information -->
                 <div>
-                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                    <h4
+                        class="text-lg font-semibold text-gray-900 dark:text-white mb-3"
+                    >
                         Información del Dominio
                     </h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Nombre</label>
-                            <p class="text-sm text-gray-900 dark:text-white">{{ selectedDomain.name }}</p>
+                            <label
+                                class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                                >Nombre</label
+                            >
+                            <p class="text-sm text-gray-900 dark:text-white">
+                                {{ selectedDomain.name }}
+                            </p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Tipo</label>
-                            <p class="text-sm text-gray-900 dark:text-white">{{ selectedDomain.type || 'N/A' }}</p>
+                            <label
+                                class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                                >Tipo</label
+                            >
+                            <p class="text-sm text-gray-900 dark:text-white">
+                                {{ selectedDomain.type || "N/A" }}
+                            </p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">URL</label>
-                            <p class="text-sm text-gray-900 dark:text-white">{{ selectedDomain.url || 'N/A' }}</p>
+                            <label
+                                class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                                >URL</label
+                            >
+                            <p class="text-sm text-gray-900 dark:text-white">
+                                {{ selectedDomain.url || "N/A" }}
+                            </p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</label>
-                            <p class="text-sm text-gray-900 dark:text-white">{{ selectedDomain.status || 'N/A' }}</p>
+                            <label
+                                class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                                >Estado</label
+                            >
+                            <p class="text-sm text-gray-900 dark:text-white">
+                                {{ selectedDomain.status || "N/A" }}
+                            </p>
                         </div>
                         <div class="col-span-2">
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Descripción</label>
-                            <p class="text-sm text-gray-900 dark:text-white">{{ selectedDomain.description || 'N/A' }}</p>
+                            <label
+                                class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                                >Descripción</label
+                            >
+                            <p class="text-sm text-gray-900 dark:text-white">
+                                {{ selectedDomain.description || "N/A" }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -619,7 +685,9 @@ onUnmounted(() => {
                 <!-- VirusTotal Information -->
                 <div>
                     <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <h4
+                            class="text-lg font-semibold text-gray-900 dark:text-white"
+                        >
                             Información de VirusTotal
                         </h4>
                         <button
@@ -635,84 +703,183 @@ onUnmounted(() => {
                         <!-- Reputation -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                             <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Reputación</span>
+                                <span
+                                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >Reputación</span
+                                >
                                 <span
                                     :class="[
                                         'px-3 py-1 text-sm font-semibold rounded-full',
-                                        getReputationColor(detailVirusTotalInfo.virustotal_reputation) === 'green'
+                                        getReputationColor(
+                                            detailVirusTotalInfo.virustotal_reputation
+                                        ) === 'green'
                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                            : getReputationColor(detailVirusTotalInfo.virustotal_reputation) === 'yellow'
+                                            : getReputationColor(
+                                                  detailVirusTotalInfo.virustotal_reputation
+                                              ) === 'yellow'
                                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                                            : getReputationColor(detailVirusTotalInfo.virustotal_reputation) === 'red'
+                                            : getReputationColor(
+                                                  detailVirusTotalInfo.virustotal_reputation
+                                              ) === 'red'
                                             ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
                                     ]"
                                 >
-                                    {{ detailVirusTotalInfo.virustotal_reputation !== null 
-                                        ? `${detailVirusTotalInfo.virustotal_reputation} - ${getReputationLabel(detailVirusTotalInfo.virustotal_reputation)}`
-                                        : 'N/A' }}
+                                    {{
+                                        detailVirusTotalInfo.virustotal_reputation !==
+                                        null
+                                            ? `${
+                                                  detailVirusTotalInfo.virustotal_reputation
+                                              } - ${getReputationLabel(
+                                                  detailVirusTotalInfo.virustotal_reputation
+                                              )}`
+                                            : "N/A"
+                                    }}
                                 </span>
                             </div>
                         </div>
 
                         <!-- Votes -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Votos de la Comunidad</h5>
+                            <h5
+                                class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3"
+                            >
+                                Votos de la Comunidad
+                            </h5>
                             <div class="flex items-center space-x-6">
                                 <div class="flex items-center">
-                                    <CheckIcon class="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                                    <span class="text-sm text-gray-700 dark:text-gray-300">Harmless:</span>
-                                    <span class="ml-2 text-lg font-semibold text-green-600 dark:text-green-400">
-                                        {{ detailVirusTotalInfo.virustotal_votes_harmless || 0 }}
+                                    <CheckIcon
+                                        class="w-5 h-5 text-green-600 dark:text-green-400 mr-2"
+                                    />
+                                    <span
+                                        class="text-sm text-gray-700 dark:text-gray-300"
+                                        >Harmless:</span
+                                    >
+                                    <span
+                                        class="ml-2 text-lg font-semibold text-green-600 dark:text-green-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo.virustotal_votes_harmless ||
+                                            0
+                                        }}
                                     </span>
                                 </div>
                                 <div class="flex items-center">
-                                    <XMarkIcon class="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-                                    <span class="text-sm text-gray-700 dark:text-gray-300">Malicious:</span>
-                                    <span class="ml-2 text-lg font-semibold text-red-600 dark:text-red-400">
-                                        {{ detailVirusTotalInfo.virustotal_votes_malicious || 0 }}
+                                    <XMarkIcon
+                                        class="w-5 h-5 text-red-600 dark:text-red-400 mr-2"
+                                    />
+                                    <span
+                                        class="text-sm text-gray-700 dark:text-gray-300"
+                                        >Malicious:</span
+                                    >
+                                    <span
+                                        class="ml-2 text-lg font-semibold text-red-600 dark:text-red-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo.virustotal_votes_malicious ||
+                                            0
+                                        }}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Analysis Stats -->
-                        <div v-if="detailVirusTotalInfo.virustotal_last_analysis_stats" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Estadísticas de Análisis</h5>
+                        <div
+                            v-if="
+                                detailVirusTotalInfo.virustotal_last_analysis_stats
+                            "
+                            class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                        >
+                            <h5
+                                class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3"
+                            >
+                                Estadísticas de Análisis
+                            </h5>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">Harmless</span>
-                                    <p class="text-lg font-semibold text-green-600 dark:text-green-400">
-                                        {{ detailVirusTotalInfo.virustotal_last_analysis_stats.harmless || 0 }}
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >Harmless</span
+                                    >
+                                    <p
+                                        class="text-lg font-semibold text-green-600 dark:text-green-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo
+                                                .virustotal_last_analysis_stats
+                                                .harmless || 0
+                                        }}
                                     </p>
                                 </div>
                                 <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">Malicious</span>
-                                    <p class="text-lg font-semibold text-red-600 dark:text-red-400">
-                                        {{ detailVirusTotalInfo.virustotal_last_analysis_stats.malicious || 0 }}
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >Malicious</span
+                                    >
+                                    <p
+                                        class="text-lg font-semibold text-red-600 dark:text-red-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo
+                                                .virustotal_last_analysis_stats
+                                                .malicious || 0
+                                        }}
                                     </p>
                                 </div>
                                 <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">Suspicious</span>
-                                    <p class="text-lg font-semibold text-yellow-600 dark:text-yellow-400">
-                                        {{ detailVirusTotalInfo.virustotal_last_analysis_stats.suspicious || 0 }}
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >Suspicious</span
+                                    >
+                                    <p
+                                        class="text-lg font-semibold text-yellow-600 dark:text-yellow-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo
+                                                .virustotal_last_analysis_stats
+                                                .suspicious || 0
+                                        }}
                                     </p>
                                 </div>
                                 <div>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">Undetected</span>
-                                    <p class="text-lg font-semibold text-gray-600 dark:text-gray-400">
-                                        {{ detailVirusTotalInfo.virustotal_last_analysis_stats.undetected || 0 }}
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >Undetected</span
+                                    >
+                                    <p
+                                        class="text-lg font-semibold text-gray-600 dark:text-gray-400"
+                                    >
+                                        {{
+                                            detailVirusTotalInfo
+                                                .virustotal_last_analysis_stats
+                                                .undetected || 0
+                                        }}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Categories -->
-                        <div v-if="detailVirusTotalInfo.virustotal_categories && Object.keys(detailVirusTotalInfo.virustotal_categories).length > 0" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Categorías</h5>
+                        <div
+                            v-if="
+                                detailVirusTotalInfo.virustotal_categories &&
+                                Object.keys(
+                                    detailVirusTotalInfo.virustotal_categories
+                                ).length > 0
+                            "
+                            class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                        >
+                            <h5
+                                class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3"
+                            >
+                                Categorías
+                            </h5>
                             <div class="flex flex-wrap gap-2">
                                 <span
-                                    v-for="(category, key) in detailVirusTotalInfo.virustotal_categories"
+                                    v-for="(
+                                        category, key
+                                    ) in detailVirusTotalInfo.virustotal_categories"
                                     :key="key"
                                     class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded-full"
                                 >
@@ -723,16 +890,38 @@ onUnmounted(() => {
 
                         <!-- Dates -->
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Último Análisis</label>
-                                <p class="text-sm text-gray-900 dark:text-white">
-                                    {{ formatDate(detailVirusTotalInfo.virustotal_last_analysis_date) }}
+                            <div
+                                class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                            >
+                                <label
+                                    class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >Último Análisis</label
+                                >
+                                <p
+                                    class="text-sm text-gray-900 dark:text-white"
+                                >
+                                    {{
+                                        formatDate(
+                                            detailVirusTotalInfo.virustotal_last_analysis_date
+                                        )
+                                    }}
                                 </p>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Última Verificación</label>
-                                <p class="text-sm text-gray-900 dark:text-white">
-                                    {{ formatDate(detailVirusTotalInfo.virustotal_last_checked_at) }}
+                            <div
+                                class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                            >
+                                <label
+                                    class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >Última Verificación</label
+                                >
+                                <p
+                                    class="text-sm text-gray-900 dark:text-white"
+                                >
+                                    {{
+                                        formatDate(
+                                            detailVirusTotalInfo.virustotal_last_checked_at
+                                        )
+                                    }}
                                 </p>
                             </div>
                         </div>
@@ -740,31 +929,51 @@ onUnmounted(() => {
                         <!-- Status -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                             <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Estado VirusTotal</span>
+                                <span
+                                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >Estado VirusTotal</span
+                                >
                                 <span
                                     :class="[
                                         'px-3 py-1 text-xs font-semibold rounded-full',
-                                        getVirusTotalStatusColor(detailVirusTotalInfo.virustotal_status) === 'green'
+                                        getVirusTotalStatusColor(
+                                            detailVirusTotalInfo.virustotal_status
+                                        ) === 'green'
                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                            : getVirusTotalStatusColor(detailVirusTotalInfo.virustotal_status) === 'red'
+                                            : getVirusTotalStatusColor(
+                                                  detailVirusTotalInfo.virustotal_status
+                                              ) === 'red'
                                             ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                                            : getVirusTotalStatusColor(detailVirusTotalInfo.virustotal_status) === 'orange'
+                                            : getVirusTotalStatusColor(
+                                                  detailVirusTotalInfo.virustotal_status
+                                              ) === 'orange'
                                             ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
-                                            : getVirusTotalStatusColor(detailVirusTotalInfo.virustotal_status) === 'yellow'
+                                            : getVirusTotalStatusColor(
+                                                  detailVirusTotalInfo.virustotal_status
+                                              ) === 'yellow'
                                             ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                                             : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
                                     ]"
                                 >
-                                    {{ detailVirusTotalInfo.virustotal_status || 'pending' }}
+                                    {{
+                                        detailVirusTotalInfo.virustotal_status ||
+                                        "pending"
+                                    }}
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <div
+                        v-else
+                        class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
+                    >
                         <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                            <ExclamationTriangleIcon class="w-4 h-4 inline mr-1" />
-                            No hay información de VirusTotal disponible para este dominio.
+                            <ExclamationTriangleIcon
+                                class="w-4 h-4 inline mr-1"
+                            />
+                            No hay información de VirusTotal disponible para
+                            este dominio.
                         </p>
                     </div>
                 </div>
@@ -783,4 +992,3 @@ onUnmounted(() => {
         </Drawer>
     </div>
 </template>
-

@@ -139,19 +139,15 @@ export function useDomains() {
     };
 
     const getVirusTotalInfo = async (id) => {
-        loading.value = true;
-        error.value = null;
-
+        // Don't set global loading to avoid triggering table refresh
+        // This is just for displaying detail information
         try {
             const response = await ApiService.get(`/domains/${id}/virustotal`);
             return response;
         } catch (err) {
             const errorMessage = err.message || "Failed to fetch VirusTotal information";
-            error.value = errorMessage;
             showError(errorMessage);
             throw err;
-        } finally {
-            loading.value = false;
         }
     };
 
