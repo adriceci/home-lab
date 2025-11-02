@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('torrents')->group(function () {
         Route::post('/search', [TorrentSearchController::class, 'search']);
         Route::post('/search-extended', [TorrentSearchController::class, 'searchExtended']);
+        Route::post('/fetch-magnet', [TorrentSearchController::class, 'fetchMagnetLink']);
         Route::post('/download', [TorrentSearchController::class, 'download']);
     });
 

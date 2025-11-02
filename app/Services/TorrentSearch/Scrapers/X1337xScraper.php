@@ -23,6 +23,86 @@ class X1337xScraper extends BaseScraper
         return $mapping[$categoryName] ?? null;
     }
 
+    /**
+     * Override search method to handle Cloudflare blocking for global searches
+     * When no categories are selected, search across multiple default categories
+     * to get mixed results, as global searches are blocked by Cloudflare
+     * 
+     * @param string $query
+     * @param array $categories
+     * @return array
+     */
+    public function search(string $query, array $categories = []): array
+    {
+        // If no categories selected, 1337x global search is blocked by Cloudflare
+        // Workaround: search across multiple default categories and combine results
+        if (empty($categories)) {
+            LogEngine::info('torrent_search', '[X1337xScraper] No categories selected, using multi-category workaround for Cloudflare bypass', [
+                'query' => $query,
+            ]);
+
+            // Default categories to search across for mixed results
+            // This bypasses Cloudflare blocking on global searches
+            $defaultCategories = [
+                ['name' => 'Video', 'code' => 201], // Movies
+                ['name' => 'Audio', 'code' => 101], // Music
+            ];
+
+            $allResults = [];
+
+            // Search each category and combine results
+            foreach ($defaultCategories as $category) {
+                try {
+                    LogEngine::debug('torrent_search', '[X1337xScraper] Searching default category', [
+                        'query' => $query,
+                        'category' => $category['name'],
+                    ]);
+
+                    $categoryResults = parent::search($query, [$category]);
+
+                    LogEngine::debug('torrent_search', '[X1337xScraper] Category search completed', [
+                        'category' => $category['name'],
+                        'results_count' => count($categoryResults),
+                    ]);
+
+                    $allResults = array_merge($allResults, $categoryResults);
+
+                    // Small delay between requests to avoid rate limiting
+                    usleep(300000); // 0.3 seconds
+                } catch (\Exception $e) {
+                    LogEngine::warning('torrent_search', '[X1337xScraper] Error searching category', [
+                        'category' => $category['name'],
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continue with next category
+                    continue;
+                }
+            }
+
+            // Remove duplicates based on title and source_url
+            $uniqueResults = [];
+            $seen = [];
+            foreach ($allResults as $result) {
+                $key = md5($result['title'] . $result['source_url']);
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $uniqueResults[] = $result;
+                }
+            }
+
+            LogEngine::info('torrent_search', '[X1337xScraper] Multi-category search completed', [
+                'query' => $query,
+                'total_results' => count($uniqueResults),
+                'categories_searched' => count($defaultCategories),
+            ]);
+
+            return $uniqueResults;
+        }
+
+        // If categories are selected, use normal search (works with Cloudflare)
+        return parent::search($query, $categories);
+    }
+
     protected function buildSearchUrl(string $query, array $categories = []): string
     {
         $baseUrl = rtrim($this->getBaseUrl(), '/');
@@ -70,7 +150,7 @@ class X1337xScraper extends BaseScraper
         $hasTableList = strpos($html, 'table-list') !== false;
         $hasSearchPage = strpos($html, 'search-page') !== false;
         $hasResults = strpos($html, 'coll-1') !== false || strpos($html, 'seeds') !== false;
-        
+
         LogEngine::debug('torrent_search', '[X1337xScraper] Starting parseResult', [
             'html_length' => strlen($html),
             'has_table_list' => $hasTableList,
@@ -165,8 +245,10 @@ class X1337xScraper extends BaseScraper
                 $firstCellClass = $firstCell->getAttribute('class');
                 $firstCellText = strtolower(trim($firstCell->textContent ?? ''));
                 // Skip if this looks like a header row
-                if (strpos($firstCellClass, 'header') !== false || 
-                    in_array($firstCellText, ['name', 'se', 'le', 'time', 'size', 'uploader'])) {
+                if (
+                    strpos($firstCellClass, 'header') !== false ||
+                    in_array($firstCellText, ['name', 'se', 'le', 'time', 'size', 'uploader'])
+                ) {
                     LogEngine::debug('torrent_search', '[X1337xScraper] Skipping header row');
                     continue;
                 }
@@ -239,8 +321,8 @@ class X1337xScraper extends BaseScraper
             // Remove any extra text like seeders count that might be in the size cell
             $size = preg_replace('/\s*[\d,]+\s*$/', '', $size);
 
-            // Leave magnet_link empty for normal search (option 1)
-            // It will be populated in extended search (option 2)
+            // Leave magnet_link empty - will be fetched asynchronously from frontend
+            // This avoids blocking the search with multiple HTTP requests
             $magnetLink = '';
 
             LogEngine::debug('torrent_search', '[X1337xScraper] Extracted torrent data', [

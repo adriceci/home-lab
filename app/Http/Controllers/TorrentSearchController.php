@@ -89,6 +89,72 @@ class TorrentSearchController extends Controller
     }
 
     /**
+     * Fetch magnet link from a torrent detail URL (async)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function fetchMagnetLink(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'source_url' => 'required|url',
+            'source' => 'required|string',
+        ]);
+
+        try {
+            // Only fetch magnet links for 1337x (other sources should have them already)
+            if ($validated['source'] !== '1337x') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Magnet link fetching only supported for 1337x',
+                    'magnet_link' => '',
+                ], 400);
+            }
+
+            // Get the scraper for 1337x
+            $sites = \App\Models\Domain::where('type', 'torrent')
+                ->where('name', '1337x')
+                ->where('is_active', true)
+                ->get();
+
+            if ($sites->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '1337x site not found',
+                    'magnet_link' => '',
+                ], 404);
+            }
+
+            $site = $sites->first();
+            
+            // Create scraper instance directly
+            $scraperClass = "App\\Services\\TorrentSearch\\Scrapers\\X1337xScraper";
+            if (!class_exists($scraperClass)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '1337x scraper class not found',
+                    'magnet_link' => '',
+                ], 500);
+            }
+
+            $scraper = new $scraperClass($site);
+
+            $magnetLink = $scraper->fetchMagnetFromDetailUrl($validated['source_url']);
+
+            return response()->json([
+                'success' => true,
+                'magnet_link' => $magnetLink,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching magnet link: ' . $e->getMessage(),
+                'magnet_link' => '',
+            ], 500);
+        }
+    }
+
+    /**
      * Initiate torrent download process
      *
      * @param Request $request

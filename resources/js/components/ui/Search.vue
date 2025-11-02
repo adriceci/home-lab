@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps({
@@ -19,9 +19,10 @@ const inputValue = ref(props.modelValue);
 let debounceTimer = null;
 
 // Categories with their TPB category codes
+// Default to enabled (checked) for better UX
 const categories = ref({
+    Video: { enabled: true, code: 201 },
     Audio: { enabled: false, code: 101 },
-    Video: { enabled: false, code: 201 },
     Applications: { enabled: false, code: 301 },
     Games: { enabled: false, code: 401 },
     Other: { enabled: false, code: 600 },
@@ -91,6 +92,11 @@ const handleKeyDown = (event) => {
         }
     }
 };
+
+// Emit initial categories when component mounts
+onMounted(() => {
+    emit("categories-change", getSelectedCategories());
+});
 </script>
 
 <template>

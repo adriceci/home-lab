@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import {
     ArrowDownTrayIcon,
     LinkIcon,
@@ -8,6 +8,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { Table } from "@/components/ui";
 import { useTorrentActions } from "@/composables/useTorrentActions";
+import ApiService from "@/services/apiService";
 
 const props = defineProps({
     results: {
@@ -26,11 +27,102 @@ const props = defineProps({
 
 const emit = defineEmits(["copyMagnet", "download"]);
 
-const hasResults = computed(() => props.results && props.results.length > 0);
+const hasResults = computed(
+    () => localResults.value && localResults.value.length > 0
+);
 
 // Use torrent actions composable
 const { downloadTorrent, copyMagnetLink, isDownloading, downloadError } =
     useTorrentActions();
+
+// Local reactive copy of results that we can update with magnet links
+const localResults = ref([]);
+
+// Track which results are currently fetching magnet links
+const fetchingMagnets = ref(new Set());
+// Track results with updated magnet links
+const resultsWithMagnets = ref({});
+
+// Check if a result is currently fetching its magnet link
+const isFetchingMagnet = (row) => {
+    const key = row.source_url || row.title;
+    return fetchingMagnets.value.has(key);
+};
+
+// Check if a result has a magnet link available
+const hasMagnetLink = (row) => {
+    const key = row.source_url || row.title;
+    return row.magnet_link || resultsWithMagnets.value[key] || false;
+};
+
+// Get magnet link for a result asynchronously
+const fetchMagnetLink = async (row) => {
+    const key = row.source_url || row.title;
+
+    // Skip if already has magnet link or is already fetching
+    if (hasMagnetLink(row) || fetchingMagnets.value.has(key)) {
+        return;
+    }
+
+    // Only fetch for 1337x results without magnet links
+    if (row.source !== "1337x" || !row.source_url) {
+        return;
+    }
+
+    fetchingMagnets.value.add(key);
+
+    try {
+        const response = await ApiService.post("/torrents/fetch-magnet", {
+            source_url: row.source_url,
+            source: row.source,
+        });
+
+        if (response.success && response.magnet_link) {
+            // Store the magnet link for this result
+            resultsWithMagnets.value[key] = response.magnet_link;
+
+            // Update the result in local results array
+            const resultIndex = localResults.value.findIndex(
+                (r) => (r.source_url || r.title) === key
+            );
+            if (resultIndex !== -1) {
+                // Update local results reactively
+                localResults.value[resultIndex] = {
+                    ...localResults.value[resultIndex],
+                    magnet_link: response.magnet_link,
+                };
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching magnet link:", error);
+        // Don't show error to user, just log it
+    } finally {
+        fetchingMagnets.value.delete(key);
+    }
+};
+
+// Sync props.results with localResults and trigger magnet link fetching
+watch(
+    () => props.results,
+    (newResults) => {
+        localResults.value = newResults ? [...newResults] : [];
+
+        // Fetch magnet links asynchronously for 1337x results without magnet links
+        if (newResults && newResults.length > 0) {
+            newResults.forEach((result) => {
+                if (
+                    result.source === "1337x" &&
+                    !result.magnet_link &&
+                    result.source_url
+                ) {
+                    // Fetch asynchronously (don't await to avoid blocking)
+                    fetchMagnetLink(result);
+                }
+            });
+        }
+    },
+    { immediate: true, deep: true }
+);
 
 const handleCopyMagnetLink = async (magnetLink) => {
     try {
@@ -156,7 +248,7 @@ const columns = [
 
     <div v-else-if="hasResults" class="space-y-4">
         <Table
-            :data="results"
+            :data="localResults"
             :columns="columns"
             :loading="loading"
             :items-per-page="10"
@@ -227,8 +319,15 @@ const columns = [
                     @click.stop
                 >
                     <button
-                        v-if="row.magnet_link"
-                        @click="handleCopyMagnetLink(row.magnet_link)"
+                        v-if="hasMagnetLink(row)"
+                        @click="
+                            handleCopyMagnetLink(
+                                row.magnet_link ||
+                                    resultsWithMagnets[
+                                        row.source_url || row.title
+                                    ]
+                            )
+                        "
                         class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                         title="Copiar magnet link"
                     >
@@ -236,13 +335,41 @@ const columns = [
                         Magnet
                     </button>
                     <button
-                        @click="handleDownload(row)"
-                        :disabled="isDownloading(row)"
+                        @click="
+                            handleDownload({
+                                ...row,
+                                magnet_link:
+                                    row.magnet_link ||
+                                    resultsWithMagnets[
+                                        row.source_url || row.title
+                                    ],
+                            })
+                        "
+                        :disabled="
+                            isDownloading(row) ||
+                            isFetchingMagnet(row) ||
+                            (!hasMagnetLink(row) && row.source === '1337x')
+                        "
                         class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Descargar torrent"
+                        :title="
+                            isFetchingMagnet(row)
+                                ? 'Obteniendo magnet link...'
+                                : !hasMagnetLink(row) && row.source === '1337x'
+                                ? 'Esperando magnet link...'
+                                : 'Descargar torrent'
+                        "
                     >
                         <ArrowDownTrayIcon class="w-4 h-4 mr-1" />
                         <span v-if="isDownloading(row)">...</span>
+                        <span v-else-if="isFetchingMagnet(row)"
+                            >Cargando...</span
+                        >
+                        <span
+                            v-else-if="
+                                !hasMagnetLink(row) && row.source === '1337x'
+                            "
+                            >Esperando...</span
+                        >
                         <span v-else>Descargar</span>
                     </button>
                     <a
